@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Personality — Gawd{% endblock %}
+{% block content %}
+<div class="max-w-3xl mx-auto pt-4 space-y-6">
+  <a href="{{ url_for('settings.settings_page') }}" class="text-zinc-400 hover:text-zinc-200 text-sm">← back to settings</a>
+
+  <div>
+    <h1 class="text-xl font-semibold">Personality (read-only)</h1>
+    <p class="text-zinc-400 text-sm mt-1">These files define who I am. Changes go through SIL — my approval is required.</p>
+  </div>
+
+  <section class="bg-zinc-900 border border-zinc-800 rounded p-5">
+    <h2 class="text-sm font-medium text-zinc-200 mb-2">SOUL.md</h2>
+    <pre class="text-xs text-zinc-300 whitespace-pre-wrap font-mono leading-relaxed">{{ soul }}</pre>
+  </section>
+
+  <section class="bg-zinc-900 border border-zinc-800 rounded p-5">
+    <h2 class="text-sm font-medium text-zinc-200 mb-2">IDENTITY.md</h2>
+    <pre class="text-xs text-zinc-300 whitespace-pre-wrap font-mono leading-relaxed">{{ identity }}</pre>
+  </section>
+
+  <section class="bg-zinc-900 border border-zinc-800 rounded p-5">
+    <h2 class="text-sm font-medium text-zinc-200 mb-3">Propose a change</h2>
+    <form hx-post="{{ url_for('settings.propose_change') }}"
+          hx-target="#sil-result"
+          hx-swap="innerHTML"
+          class="space-y-3">
+      <div>
+        <label class="block text-sm text-zinc-300 mb-1">Target</label>
+        <select name="target" class="w-full bg-zinc-950 border border-zinc-700 rounded px-3 py-2 text-zinc-100">
+          <option value="SOUL">SOUL.md</option>
+          <option value="IDENTITY">IDENTITY.md</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-sm text-zinc-300 mb-1">Proposed change (Gawd will review)</label>
+        <textarea name="description" rows="4" required maxlength="2000"
+                  class="w-full bg-zinc-950 border border-zinc-700 rounded px-3 py-2 text-zinc-100"></textarea>
+      </div>
+      <button type="submit" class="bg-emerald-700 hover:bg-emerald-600 text-white text-sm rounded px-4 py-2">submit proposal</button>
+    </form>
+    <div id="sil-result" class="mt-3"></div>
+  </section>
+</div>
+{% endblock %}

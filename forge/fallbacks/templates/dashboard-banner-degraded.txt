@@ -1,0 +1,44 @@
+# Template: dashboard-banner-degraded
+
+**Channel**: Dashboard status banner (top-of-panel persistent UI element)
+**Trigger**: Same as dashboard-degraded; fires and stays visible until recovery
+**Character budget**: ~80 chars
+**Variables**: none (banner is a status UI element; the personal message is in the chat panel)
+**Version**: 1.0 | 2026-05-27
+
+---
+
+## Template (banner text)
+
+Gawd is having trouble — retrying — try again in a moment
+
+---
+
+## Character count
+
+57 characters. Under 80.
+
+## Rendering notes
+
+- This text appears in the dashboard status banner — a persistent, always-visible strip at the top or bottom of the chat panel
+- Visual style: yellow/amber background (per diagram conventions: yellow = in-progress); not red (red = broken; this is degraded, not broken)
+- Banner persists until recovery is confirmed; do not auto-dismiss on a timer
+- The in-chat message (`dashboard-degraded.html`) is the voice layer; this banner is the status layer — they serve different functions and both must be present
+- Pair the banner with the "Restart Gawd" button (dashboard UI element, G6 handoff); the button text is separate from this template
+
+## Alternative extended-degraded banner
+
+When degradation persists >5 minutes, the banner may update to:
+
+```
+Gawd has been offline since [time] — retrying — restart if needed
+```
+
+Time value is injected by the dashboard engine (not a template variable — this is a UI binding from the heartbeat state, not a static template).
+
+## Voice register check
+
+- Not full Gawd voice — this is a status UI element, not a first-person message
+- But not flat system text: "Gawd is having trouble" vs "Service unavailable" — the former has warmth and personality; the latter could be a bank error
+- "Retrying" — signals active recovery effort; not "please wait"
+- "Try again in a moment" — short invitation; consistent with all other templates

@@ -1,0 +1,29 @@
+[Unit]
+Description=Gawd xfce4 TigerVNC desktop on display :1 (localhost only, Tailscale-fronted)
+# Spec §8.1: xfce4 lightweight desktop environment
+# Pattern: proven on Lilith/Asgard (gospel §8.8, lilith-vnc.service)
+# Security: VNC listens localhost only (-localhost yes); Tailscale Serve provides TLS
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+# GAWD_USER: replaced by install-desktop.sh for the target user
+User=gawd
+Group=gawd
+PAMName=login
+WorkingDirectory=/home/gawd
+Environment=HOME=/home/gawd
+# Kill any stale VNC lock before starting (safe: -kill returns non-zero if no lock)
+ExecStartPre=-/usr/bin/tigervncserver -kill :1
+# -fg: run in foreground so systemd tracks the process
+# -localhost yes: bind VNC to loopback only
+# -SecurityTypes None: no VNC password (security via Tailscale Serve)
+# -xstartup: launches xfce4 (see /home/gawd/.vnc/xstartup)
+ExecStart=/usr/bin/tigervncserver :1 -fg -localhost yes -geometry 1920x1080 -SecurityTypes None -xstartup /home/gawd/.vnc/xstartup
+# Spec §8.8 + acceptance criteria: Restart=always
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

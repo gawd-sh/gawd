@@ -1,0 +1,118 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Gawd First-Ship Validation Suite — Result Schema",
+  "description": "Schema for the JSON result emitted by `gawd-validate first-ship`. Produced by F3 (METATRON 2026-05-26). Consumed by F2 (graduation-gate.sh), F1 (gawd-import.sh self-test), and on-demand operator invocations.",
+  "type": "object",
+  "required": ["version", "tool", "timestamp", "workspace", "validations", "summary"],
+  "properties": {
+    "version": {
+      "type": "string",
+      "description": "Schema version. Bumped on any breaking change.",
+      "const": "1.0"
+    },
+    "tool": {
+      "type": "string",
+      "const": "gawd-validate-first-ship"
+    },
+    "tool_version": {
+      "type": "string",
+      "description": "Implementation version of gawd-validate (semver)."
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp at start of suite run."
+    },
+    "workspace": {
+      "type": "string",
+      "description": "Absolute path to the Gawd workspace under test."
+    },
+    "duration_sec": {
+      "type": "number",
+      "description": "Wall-clock seconds the suite took to run end-to-end."
+    },
+    "validations": {
+      "type": "array",
+      "description": "Per-validation results, in execution order.",
+      "items": {
+        "type": "object",
+        "required": ["id", "status", "primitive_owner"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "enum": [
+              "meeting-playback",
+              "sil-gate-first-fire",
+              "fixed-test-suite-spot-check"
+            ],
+            "description": "Stable identifier for the validation."
+          },
+          "status": {
+            "type": "string",
+            "enum": ["pass", "fail", "skip", "tool-broken"],
+            "description": "Aggregate verdict for this validation. `tool-broken` means the primitive itself errored (exit 2)."
+          },
+          "primitive_owner": {
+            "type": "string",
+            "enum": ["B2", "E3", "F1"],
+            "description": "The upstream handoff that produced the primitive this validation wraps. Failure diagnosis routes here."
+          },
+          "primitive_path": {
+            "type": "string",
+            "description": "Absolute path to the primitive script invoked."
+          },
+          "exit_code": {
+            "type": "integer",
+            "description": "Exit code returned by the primitive."
+          },
+          "duration_sec": {
+            "type": "number",
+            "description": "Wall-clock seconds this validation took."
+          },
+          "diagnostic_message": {
+            "type": "string",
+            "description": "Human-readable summary of failure (empty on pass). Cites primitive_owner so operators know where to diagnose."
+          },
+          "sub_assertions": {
+            "type": "array",
+            "description": "Per-assertion detail forwarded from the primitive (e.g., B2's three meeting assertions, F1's three T0 assertions).",
+            "items": {
+              "type": "object",
+              "required": ["id", "status"],
+              "properties": {
+                "id": { "type": "string" },
+                "status": { "type": "string", "enum": ["pass", "fail", "skip"] },
+                "diagnostic": { "type": "string" }
+              }
+            }
+          },
+          "primitive_result_file": {
+            "type": "string",
+            "description": "Path to the primitive's own result JSON, if it wrote one. For deep-diagnosis."
+          },
+          "stub_mode": {
+            "type": "boolean",
+            "description": "True if this validation ran against a stubbed primitive (e.g., E3 before it lands). When true, status MUST be `skip` and operators MUST treat the overall verdict as conditional.",
+            "default": false
+          }
+        }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "required": ["verdict", "total", "passed", "failed", "skipped"],
+      "properties": {
+        "verdict": {
+          "type": "string",
+          "enum": ["pass", "fail", "conditional"],
+          "description": "Aggregate verdict. `pass` if all validations pass; `fail` if any fail or tool-broken; `conditional` if any are stubbed/skipped but no fails — F2 should treat conditional as PASS-with-warning, not as PASS."
+        },
+        "total": { "type": "integer" },
+        "passed": { "type": "integer" },
+        "failed": { "type": "integer" },
+        "skipped": { "type": "integer" },
+        "tool_broken": { "type": "integer" }
+      }
+    }
+  }
+}

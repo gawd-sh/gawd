@@ -1,0 +1,161 @@
+{
+    "spec_reference": "2026-05-26-gawd-architecture-design.md §14.2.5",
+    "schema_version": "1",
+    "last_updated": "2026-05-27",
+    "rungs": {
+        "hosted": {
+            "description": "Multi-Gawd VPS (reference target: 32 GB Hetzner-class). We own the substrate and the bill.",
+            "alarm_policy": "hard",
+            "soft_threshold_pct": 80,
+            "hard_threshold_pct": 100,
+            "per_gawd": {
+                "with_desktop_mb": 3584,
+                "text_only_mb": 1536,
+                "voice_relay_extra_mb": 200,
+                "components": {
+                    "openclaw_runtime_mb": 512,
+                    "xfce4_desktop_mb": 1024,
+                    "browser_mb": 1024,
+                    "memory_and_embedding_mb": 512,
+                    "headroom_mb": 512
+                }
+            },
+            "alert_surface": {
+                "telegram_to_paul": true,
+                "telegram_chat_id_env": "GAWDFATHER_PAUL_CHAT_ID",
+                "gawdfather_inbox": "<install-root>/.openclaw/workspace/inbox/"
+            }
+        },
+        "prophit-vm": {
+            "description": "Docker container on Prophit's hardware. Their substrate; soft warnings only.",
+            "alarm_policy": "soft",
+            "soft_threshold_pct": 80,
+            "hard_threshold_pct": 100,
+            "per_gawd": {
+                "minimum_mb": 4096,
+                "recommended_mb": 8192,
+                "voice_relay_extra_mb": 200
+            },
+            "alert_surface": {
+                "telegram_to_paul": false,
+                "telegram_to_prophit": false,
+                "log_only": false,
+                "warning_in_gawd_journal": true
+            }
+        },
+        "bare-metal": {
+            "description": "Native install on Prophit's hardware. No upper bound enforced. Log-only.",
+            "alarm_policy": "log_only",
+            "soft_threshold_pct": null,
+            "hard_threshold_pct": null,
+            "per_gawd": {
+                "minimum_mb": 8192,
+                "recommended_mb_per_household_gawd": 4096
+            },
+            "alert_surface": {
+                "telegram_to_paul": false,
+                "telegram_to_prophit": false,
+                "log_only": true
+            }
+        }
+    },
+    "metric_definitions": {
+        "gawd_rss_bytes": {
+            "type": "gauge",
+            "help": "Total resident set size of the Gawd daemon process tree, in bytes.",
+            "cardinality": "low",
+            "labels": ["gawd_id", "rung"]
+        },
+        "gawd_budget_bytes": {
+            "type": "gauge",
+            "help": "Per-Gawd RAM budget for the current rung, in bytes.",
+            "cardinality": "low",
+            "labels": ["gawd_id", "rung"]
+        },
+        "gawd_budget_used_ratio": {
+            "type": "gauge",
+            "help": "Ratio of current RAM use to the rung budget (0.0-1.0+).",
+            "cardinality": "low",
+            "labels": ["gawd_id", "rung"]
+        },
+        "gawd_demigawd_spawn_total": {
+            "type": "counter",
+            "help": "Cumulative DemiGawd spawns by skill since process start.",
+            "cardinality": "low",
+            "labels": ["skill"]
+        },
+        "gawd_demigawd_cleanup_deleted_total": {
+            "type": "counter",
+            "help": "Cumulative DemiGawd state files deleted by cleanup runs.",
+            "cardinality": "low",
+            "labels": []
+        },
+        "gawd_state_dir_bytes": {
+            "type": "gauge",
+            "help": "Total size of the DemiGawd state directory in bytes (C1 alarm signal).",
+            "cardinality": "low",
+            "labels": []
+        },
+        "gawd_state_marker_count": {
+            "type": "gauge",
+            "help": "Current count of .marker files in state dir (C1 alarm signal).",
+            "cardinality": "low",
+            "labels": []
+        },
+        "gawd_state_stale_marker_age_seconds_max": {
+            "type": "gauge",
+            "help": "Oldest .marker file age in seconds, where status is still incomplete (C1 alarm signal).",
+            "cardinality": "low",
+            "labels": []
+        },
+        "gawd_dispatch_total": {
+            "type": "counter",
+            "help": "Cumulative dispatches, partitioned by tier class only (NOT per model — cardinality discipline).",
+            "cardinality": "low",
+            "labels": ["tier_class"]
+        },
+        "gawd_chain_step_latency_seconds": {
+            "type": "histogram",
+            "help": "Latency of chain step calls, bucketed by step position (primary/fallback_1/...).",
+            "cardinality": "low",
+            "labels": ["step"]
+        },
+        "gawd_telegram_messages_total": {
+            "type": "counter",
+            "help": "Cumulative Telegram messages handled, partitioned by direction.",
+            "cardinality": "low",
+            "labels": ["direction"]
+        },
+        "gawd_skill_fallback_total": {
+            "type": "counter",
+            "help": "Cumulative skill fallback events (skill stepped from default_tier to fallback_tier). Cardinality bounded by skill x tier x tier x reason. C2 integration.",
+            "cardinality": "low",
+            "labels": ["skill", "from", "to", "reason"]
+        },
+        "gawd_voice_state": {
+            "type": "gauge",
+            "help": "Voice subsystem state as enum: active=2, degraded=1, disabled=0, stopped=-1, unknown=-2.",
+            "cardinality": "low",
+            "labels": []
+        },
+        "gawd_voice_degradation_total": {
+            "type": "counter",
+            "help": "Cumulative voice degradation events from D2 voice relay, partitioned by kind (stt|tts).",
+            "cardinality": "low",
+            "labels": ["kind"]
+        }
+    },
+    "cardinality_rules": {
+        "never_label_with": [
+            "task_id",
+            "demigawd_instance_id",
+            "prophit_user_id",
+            "chat_id",
+            "session_id",
+            "model_name_specific",
+            "raw_error_message",
+            "prompt_excerpt"
+        ],
+        "rationale": "These would create unbounded label combinations. Aggregate at tier_class / skill granularity only."
+    }
+}

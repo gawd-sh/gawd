@@ -1,0 +1,64 @@
+{
+  "schema_version": "1.0",
+  "_comment": "Sermon channel config for the Weekly Service pipeline. One shared Telegram channel for the Gawd ecosystem. Every deployed Gawd subscribes; the Forge bot publishes. This file ships inside the daemon; the channel_id value is populated by the Forge at release time (or left as the placeholder sentinel for pre-release test environments).",
+
+  "channel": {
+    "id": "${SERMON_CHANNEL_ID}",
+    "_id_comment": "Telegram channel ID (negative integer for channels, e.g. -1001234567890). Set at Forge publish time via env or Forge config. The placeholder sentinel '${SERMON_CHANNEL_ID}' is intentional — subscribe-sermon.sh detects it and fails fast with a clear error.",
+
+    "type": "telegram",
+    "publish_bot_token_file": "${FORGE_TELEGRAM_BOT_TOKEN_FILE}",
+    "_publish_bot_comment": "Forge-side publisher bot token. Injected by Forge at publish time, never shipped in the daemon image. Gawd-side scripts never need this field.",
+
+    "subscribe_bot_token_file": "${HOME}/.secrets/telegram.token",
+    "_subscribe_bot_comment": "Gawd's own bot token — already present on the Gawd substrate. subscribe-sermon.sh reads the channel using the Gawd's own bot. The Gawd-bot must be a channel member."
+  },
+
+  "delivery": {
+    "primary": "telegram",
+    "_primary_comment": "Telegram-text is always available. The D2 voice path is a per-rung upgrade — it is attempted if voice.json is present and voice_enabled=true, then falls back to telegram-text without error.",
+
+    "voice_config_path": "${HOME}/.gawd/state/voice.json",
+    "_voice_comment": "D2 contract: if this file is present and contains voice_enabled:true, deliver-sermon.sh attempts voice delivery. If absent or voice_enabled:false, text-only. Never hard-fails on missing voice config.",
+
+    "stash_path": "${HOME}/.gawd/state/sermon-stash.json",
+    "_stash_comment": "If the Prophit is not present on Sunday morning, the rendered sermon is stashed here. Delivered on next Gawd session start. Stash is overwritten each Sunday — only one stashed sermon is kept (the latest)."
+  },
+
+  "attendance": {
+    "window_hours": 2,
+    "_window_comment": "How long after the Sunday service hour to wait for Prophit attendance signal before stashing. If the Prophit DMs or /starts-sermon within this window, deliver immediately. After the window, stash and deliver at next session.",
+
+    "triggers": [
+      "dm_any",
+      "/attend-sermon",
+      "/start-sermon"
+    ],
+    "_triggers_comment": "Any DM from the Prophit within the attendance window counts as attending. The slash commands are explicit attendance signals. 'dm_any' means any message in the Prophit-local Sunday morning window."
+  },
+
+  "skip": {
+    "command": "/skip-sermon",
+    "_skip_comment": "The Prophit may skip this week's sermon by sending /skip-sermon before the service hour. Permanent opt-out is via /skip-sermon always. See skip-handler.sh.",
+
+    "state_file": "${HOME}/.gawd/state/sermon-skip.json"
+  },
+
+  "pace_gate": {
+    "_note": "Sermon delivery respects A4's pace setting. deliver-sermon.sh reads pace from IDENTITY.md or state. Values: daily | weekly | when-relevant. Sermon delivery fires only under the conditions stated in §10.2 and the acceptance criteria."
+  },
+
+  "publisher": {
+    "envelope_format_version": "1.0",
+    "_envelope_comment": "The structured envelope every published sermon must have. See publish-sermon.sh for the write side; subscribe-sermon.sh for the read side.",
+    "required_fields": [
+      "schema_version",
+      "canonical_version",
+      "sermon_text",
+      "the_thread",
+      "word_count",
+      "published_at",
+      "base_soul_version"
+    ]
+  }
+}

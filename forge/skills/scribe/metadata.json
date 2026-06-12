@@ -1,0 +1,50 @@
+{
+  "name": "scribe",
+  "purpose": "Write a complete document from a brief — finished, not draft; returns the full document ready to use",
+  "default_tier": "exalted",
+  "timeout_sec": 90,
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "task_description": {
+        "type": "string",
+        "description": "Document brief: what to write, format, voice register, audience",
+        "maxLength": 4000
+      },
+      "injected_context": {
+        "type": "string",
+        "description": "Reference material, source notes, outlines, or raw content to write from",
+        "maxLength": 8000
+      }
+    },
+    "required": ["task_description"]
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "status": {
+        "type": "string",
+        "enum": ["complete", "failed"]
+      },
+      "output": {
+        "type": "string",
+        "description": "The complete, finished document text"
+      },
+      "error": {
+        "type": ["string", "null"]
+      }
+    },
+    "required": ["status", "output", "error"]
+  },
+  "smoke_test": {
+    "input": {
+      "task_description": "Write a two-sentence email declining a meeting invitation, professional tone",
+      "injected_context": ""
+    },
+    "expected_output_shape": {
+      "status": "complete",
+      "output_min_length": 50,
+      "output_max_length": 400
+    }
+  }
+}

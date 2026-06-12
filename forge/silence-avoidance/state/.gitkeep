@@ -1,0 +1,7 @@
+# Engine state directory (forge artifact placeholder).
+#
+# silence-window.json is created at runtime by engine.sh state_ensure()
+# under ~/.gawd/fallbacks/state/silence-window.json on a deployed Gawd.
+# This directory exists in the forge artifact so the install layout is
+# explicit; the runtime location is determined by GAWD_FALLBACK_STATE_DIR
+# (default ~/.gawd/fallbacks/state/).

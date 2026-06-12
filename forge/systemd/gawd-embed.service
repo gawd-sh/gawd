@@ -1,0 +1,57 @@
+[Unit]
+Description=Gawd embedding server (llama-server; local memory embeddings)
+After=network-online.target
+Wants=network-online.target
+# Circuit-breaker (hardening 2): give up after 5 failures in 5 min, then alert.
+StartLimitIntervalSec=300
+StartLimitBurst=5
+OnFailure=gawd-failure-alert@%n.service
+
+[Service]
+Type=simple
+# Health-gated: embed has no upstream, so it is a root of the dependency graph.
+# Model path + port are overridable via gawd-embed.env (install.sh writes it).
+EnvironmentFile=-%h/.gawd/state/gawd-embed.env
+Environment=GAWD_EMBED_PORT=11436
+Environment=GAWD_EMBED_MODEL=%h/.gawd/models/qwen3-embedding-0.6b.gguf
+ExecStart=/usr/bin/env llama-server \
+    --host 127.0.0.1 \
+    --port ${GAWD_EMBED_PORT} \
+    --model ${GAWD_EMBED_MODEL} \
+    --embedding \
+    --pooling last \
+    --ctx-size 2048 \
+    --batch-size 512 \
+    --ubatch-size 512 \
+    --no-warmup \
+    --alias qwen3-embedding-0.6b
+Restart=always
+RestartSec=10
+
+# BAKED LEAK GUARD (hardening 3): llama.cpp --embedding leaks per-batch tensors.
+# Auto-cycle every 6h so RSS can never refill RAM/swap. 6h (not April's 18h) is
+# the conservative ship default — a 0.6B model bloated to 9.4 GB inside ~24h on
+# Dasra; 6h caps worst-case accumulation to ~1/4 of that on the smallest box,
+# and a 2-3s embed-server restart is invisible to the Prophit (memory recall
+# briefly queues, no user-facing outage). Tunable via gawd-embed.env override.
+RuntimeMaxSec=21600
+
+# Memory ceiling (hardening 7): even within a cycle, never let the leak take the
+# box. 3G is the documented baseline ceiling; a 0.6B model's legitimate RSS is
+# < 1.5 GB, so 3G is headroom, not a constraint. systemd kills + restarts on breach.
+# install.sh writes a gawd-embed.service.d/memory.conf drop-in that scales these
+# down on a small prophit-vm (D3 RAM envelopes); the unit values are the cap.
+MemoryMax=3G
+MemoryHigh=2G
+
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=%h/.gawd
+PrivateTmp=true
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=gawd-embed
+
+[Install]
+WantedBy=default.target

@@ -1,0 +1,22 @@
+# Gawd dreaming crontab — supercronic format (standard cron syntax).
+#
+# Q2: GAWD_DREAM_MODEL sets the dedicated cheap cloud model for dreaming.
+#     Default: minimax/MiniMax-M2.7. Override by setting GAWD_DREAM_MODEL in the
+#     container environment at `docker run` time. Never bake a key here — model
+#     name only; the key is resolved from secrets at runtime.
+#
+# Q3: This file is the SINGLE dreaming scheduler owner. The OpenClaw built-in
+#     memory-core dreaming.enabled is set to false in openclaw.json (install.sh
+#     Python heredoc). No other mechanism schedules safe-dream.sh.
+#
+# The lib helpers (dream-cursor.sh, dream-pace.sh) are baked at
+# /usr/local/lib/gawd/memory/lib/ and staged to
+# /home/gawd/.gawd/workspace/scripts/lib/ by install.sh.
+# safe-dream.sh sources them relative to its own $0 location — the baked lib
+# path works from both the staged location and the original.
+#
+# supercronic reads GAWD_DREAM_MODEL from the container environment automatically.
+# The inline assignment below provides the fallback when no env var is injected.
+#
+# Schedule: 0 3 * * * = 3:00 AM daily (matching the Q3 dreaming spec).
+0 3 * * * GAWD_DREAM_MODEL=${GAWD_DREAM_MODEL:-minimax/MiniMax-M2.7} bash /usr/local/lib/gawd/memory/safe-dream.sh >> /home/gawd/.gawd/logs/gawd-dreaming.log 2>&1

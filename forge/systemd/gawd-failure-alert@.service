@@ -1,0 +1,9 @@
+[Unit]
+Description=Gawd reliability alert for %i (fires when a supervised unit gives up)
+# This unit must never itself participate in the circuit it reports on.
+StartLimitIntervalSec=0
+
+[Service]
+Type=oneshot
+ExecStart=%h/.gawd/scripts/gawd-failure-alert.sh %i
+Environment=GAWD_HOME=%h/.gawd

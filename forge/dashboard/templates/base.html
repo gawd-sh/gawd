@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en" class="h-full bg-zinc-950 text-zinc-100">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  {# dash-HIGH H1: CSRF token for non-HTMX/AJAX callers. #}
+  <meta name="csrf-token" content="{{ csrf_token() }}">
+  <title>{% block title %}Gawd{% endblock %}</title>
+  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='ct-ardenite.svg') }}">
+  <!-- Tailwind via CDN for v1; bundle locally for v2 offline rung -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- HTMX -->
+  <script src="https://unpkg.com/htmx.org@1.9.10" crossorigin="anonymous"></script>
+  <!-- Server-Sent Events extension for HTMX -->
+  <script src="https://unpkg.com/htmx.org@1.9.10/dist/ext/sse.js" crossorigin="anonymous"></script>
+  <style>
+    .gawd-pulse { animation: gawd-pulse 1.6s ease-in-out infinite; }
+    @keyframes gawd-pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    .gawd-movement { line-height: 1.7; }
+  </style>
+  {% block head %}{% endblock %}
+</head>
+{# dash-HIGH H1: every HTMX request carries the CSRF token in the X-CSRF-Token
+   header via this body-level hx-headers attribute (inherited by all hx-* on the
+   page). The csrf.py before_request hook validates it on all mutating methods. #}
+<body class="h-full flex flex-col"
+      hx-headers='{"X-CSRF-Token": "{{ csrf_token() }}"}'>
+  {# Heartbeat / status bar — always visible per acceptance criterion #}
+  {% include "_heartbeat.html" %}
+
+  {# Degraded banner — conditional on G2 fallback state #}
+  {% if banner and banner.get('state') in ('degraded', 'recovered') %}
+    {% include "_degraded_banner.html" %}
+  {% endif %}
+
+  <main class="flex-1 overflow-auto">
+    <div class="max-w-3xl mx-auto px-4 py-6 sm:px-6">
+      {% block content %}{% endblock %}
+    </div>
+  </main>
+
+  <footer class="text-xs text-zinc-500 text-center py-3 border-t border-zinc-800">
+    <span>exposure: {{ exposure }}</span>
+    {% if current_user_chat_id %}
+      <span class="mx-2">·</span>
+      {# dash-HIGH H1: logout is POST-only; submit via a small inline form that
+         carries the CSRF token. #}
+      <form method="post" action="{{ url_for('auth.logout') }}" class="inline">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="hover:text-zinc-300 underline bg-transparent border-0 p-0 cursor-pointer text-zinc-500">log out</button>
+      </form>
+    {% endif %}
+  </footer>
+
+  {% block scripts %}{% endblock %}
+</body>
+</html>

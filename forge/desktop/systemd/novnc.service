@@ -1,0 +1,23 @@
+[Unit]
+Description=Gawd noVNC HTML5 frontend on 127.0.0.1:6080 (Tailscale-fronted)
+# Spec §8.1: noVNC exposes the xfce4 VNC session via browser (HTML5)
+# Pattern: proven on Lilith/Asgard (gospel §8.8, lilith-novnc.service)
+# websockify bridges WebSocket (browser) to VNC (TigerVNC on :5901)
+After=gawd-vnc.service
+Requires=gawd-vnc.service
+
+[Service]
+Type=simple
+# GAWD_USER: replaced by install-desktop.sh for the target user
+User=gawd
+Group=gawd
+# --web=/usr/share/novnc: serve the noVNC HTML5 client files
+# 127.0.0.1:6080: bind WebSocket to loopback only (Tailscale Serve fronts it)
+# localhost:5901: connect to TigerVNC (display :1 = port 5901)
+ExecStart=/usr/bin/websockify --web=/usr/share/novnc 127.0.0.1:6080 localhost:5901
+# Spec §8.8 + acceptance criteria: Restart=always
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

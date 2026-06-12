@@ -1,0 +1,51 @@
+{
+  "name": "sentinel",
+  "purpose": "Scan content for a named condition; returns TRIGGERED or CLEAR plus a brief explanation",
+  "default_tier": "ordained",
+  "fallback_tier": "blessed",
+  "timeout_sec": 30,
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "task_description": {
+        "type": "string",
+        "description": "The condition to scan for — be precise: what constitutes a trigger vs clear",
+        "maxLength": 4000
+      },
+      "injected_context": {
+        "type": "string",
+        "description": "The content to scan",
+        "maxLength": 8000
+      }
+    },
+    "required": ["task_description"]
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "status": {
+        "type": "string",
+        "enum": ["complete", "failed"]
+      },
+      "output": {
+        "type": "string",
+        "description": "TRIGGERED or CLEAR on line 1, followed by a 2-4 sentence explanation",
+        "pattern": "^(TRIGGERED|CLEAR)"
+      },
+      "error": {
+        "type": ["string", "null"]
+      }
+    },
+    "required": ["status", "output", "error"]
+  },
+  "smoke_test": {
+    "input": {
+      "task_description": "Contains a mention of a price or dollar amount",
+      "injected_context": "The new subscription costs $9.99 per month and includes all features."
+    },
+    "expected_output_shape": {
+      "status": "complete",
+      "output_starts_with": "TRIGGERED"
+    }
+  }
+}

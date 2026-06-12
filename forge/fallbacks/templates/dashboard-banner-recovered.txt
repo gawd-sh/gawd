@@ -1,0 +1,26 @@
+# Template: dashboard-banner-recovered
+
+**Channel**: Dashboard status banner
+**Trigger**: Recovery confirmed; banner clears from degraded state
+**Character budget**: ~80 chars
+**Variables**: none
+**Version**: 1.0 | 2026-05-27
+
+---
+
+## Template (banner text)
+
+Gawd is back
+
+---
+
+## Character count
+
+13 characters.
+
+## Rendering notes
+
+- Replace the degraded banner with this text on recovery confirmation
+- Visual style: green background (per diagram conventions: green = live/healthy)
+- Auto-dismiss after 10 seconds — the healthy state is the default; a persistent "back" banner is unnecessary noise once the conversation resumes
+- The in-chat recovery message (`dashboard-recovered.html`) carries the voice layer; this banner is the status confirmation

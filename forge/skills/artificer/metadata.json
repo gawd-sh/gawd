@@ -1,0 +1,49 @@
+{
+  "name": "artificer",
+  "purpose": "Build working code, scripts, or configuration from a spec — complete artifact, not pseudocode or skeleton",
+  "default_tier": "exalted",
+  "timeout_sec": 120,
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "task_description": {
+        "type": "string",
+        "description": "The specification: what to build, language/format, constraints, acceptance criteria",
+        "maxLength": 4000
+      },
+      "injected_context": {
+        "type": "string",
+        "description": "Reference material: existing code, API docs, schemas, examples to build from",
+        "maxLength": 8000
+      }
+    },
+    "required": ["task_description"]
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "status": {
+        "type": "string",
+        "enum": ["complete", "failed"]
+      },
+      "output": {
+        "type": "string",
+        "description": "The complete artifact (code, script, config) followed by a brief note on assumptions and dependencies"
+      },
+      "error": {
+        "type": ["string", "null"]
+      }
+    },
+    "required": ["status", "output", "error"]
+  },
+  "smoke_test": {
+    "input": {
+      "task_description": "Write a bash one-liner that counts the number of lines in all .sh files in the current directory",
+      "injected_context": ""
+    },
+    "expected_output_shape": {
+      "status": "complete",
+      "output_contains_keywords": ["find", "wc", ".sh"]
+    }
+  }
+}

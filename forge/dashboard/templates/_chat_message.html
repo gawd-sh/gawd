@@ -1,0 +1,20 @@
+{# Single chat message partial. record = {role, text, kind, meta, ts} #}
+{% set role = record.role %}
+<div class="rounded p-3 {% if role == 'fallback' %}bg-amber-900/30 border border-amber-800{% elif role == 'system' %}bg-zinc-800 border border-zinc-700{% elif role == 'prophit' %}bg-emerald-900/20 border border-emerald-900{% else %}bg-zinc-900 border border-zinc-800{% endif %}">
+  <div class="text-xs uppercase tracking-wide text-zinc-500 mb-1">{{ role }}</div>
+  {% if record.kind == 'punt' and record.meta and record.meta.novnc_url %}
+    <div class="text-zinc-100">
+      <p>That ({{ record.meta.reason }}) is desktop-class. Open my desktop and we'll watch together:</p>
+      <a href="{{ record.meta.novnc_url }}" target="_blank" rel="noopener"
+         class="inline-block mt-2 underline text-amber-300 hover:text-amber-200">
+        open Gawd's desktop
+      </a>
+    </div>
+  {% elif record.kind == 'punt' %}
+    <div class="text-zinc-100">
+      <p>That ({{ record.meta.reason if record.meta else 'desktop-class content' }}) belongs on my desktop. My desktop isn't installed on this rung. Catch me where I have a screen.</p>
+    </div>
+  {% else %}
+    <div class="whitespace-pre-wrap text-zinc-100">{{ record.text }}</div>
+  {% endif %}
+</div>

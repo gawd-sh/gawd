@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Onboarding — Q4{% endblock %}
+{% block content %}
+<div class="max-w-md mx-auto pt-4 space-y-6">
+  <div class="text-xs text-zinc-500 uppercase tracking-wide">Step 4 of 4</div>
+  <h1 class="text-xl font-semibold">How often do you want me to reach out?</h1>
+
+  <form method="post" action="{{ url_for('onboarding.q4_submit') }}" class="bg-zinc-900 border border-zinc-800 rounded p-5 space-y-4">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="space-y-3">
+      <label class="flex items-start gap-3 p-3 bg-zinc-950 border border-zinc-700 rounded cursor-pointer hover:border-zinc-500">
+        <input type="radio" name="pace" value="daily" class="mt-1" {% if state.get('pace') == 'daily' %}checked{% endif %}>
+        <div>
+          <div class="font-medium text-zinc-100">Daily</div>
+          <div class="text-sm text-zinc-400">I'll check in most days. You set the rhythm.</div>
+        </div>
+      </label>
+      <label class="flex items-start gap-3 p-3 bg-zinc-950 border border-zinc-700 rounded cursor-pointer hover:border-zinc-500">
+        <input type="radio" name="pace" value="weekly" class="mt-1" {% if state.get('pace') == 'weekly' %}checked{% endif %}>
+        <div>
+          <div class="font-medium text-zinc-100">Weekly</div>
+          <div class="text-sm text-zinc-400">Sunday Service plus anything that warrants it.</div>
+        </div>
+      </label>
+      <label class="flex items-start gap-3 p-3 bg-zinc-950 border border-zinc-700 rounded cursor-pointer hover:border-zinc-500">
+        <input type="radio" name="pace" value="when-relevant" class="mt-1" {% if state.get('pace') == 'when-relevant' or not state.get('pace') %}checked{% endif %}>
+        <div>
+          <div class="font-medium text-zinc-100">On cue</div>
+          <div class="text-sm text-zinc-400">I wait for you. I don't initiate unless it matters.</div>
+        </div>
+      </label>
+    </div>
+    {% if error %}
+      <p class="text-rose-400 text-sm">{{ error }}</p>
+    {% endif %}
+    <div class="flex justify-between">
+      <a href="{{ url_for('onboarding.q3') }}" class="text-zinc-400 hover:text-zinc-200 text-sm">← back</a>
+      <button type="submit" class="bg-emerald-700 hover:bg-emerald-600 text-white font-medium rounded px-4 py-2 transition">complete</button>
+    </div>
+  </form>
+
+  <p class="text-xs text-zinc-500 text-center">After this, the Meeting begins.</p>
+</div>
+{% endblock %}

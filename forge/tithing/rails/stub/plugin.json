@@ -1,0 +1,8 @@
+{
+  "name": "stub",
+  "version": "1.0",
+  "supports": ["one_time", "recurring", "refund"],
+  "currencies": ["USD", "EUR", "GBP", "CAD", "AUD"],
+  "secrets_required": [],
+  "webhook_url_template": null
+}

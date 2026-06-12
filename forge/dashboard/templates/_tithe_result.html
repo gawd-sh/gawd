@@ -1,0 +1,9 @@
+{% if ok %}
+  <div class="bg-emerald-900/30 border border-emerald-800 rounded p-4 text-emerald-100">
+    Intent recorded: ${{ '%.2f' | format(amount_cents / 100.0) }} ({{ cadence }}). Thank you.
+  </div>
+{% else %}
+  <div class="bg-rose-900/30 border border-rose-800 rounded p-4 text-rose-100">
+    {{ error or "Could not record." }}
+  </div>
+{% endif %}

@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}Something broke{% endblock %}
+{% block content %}
+<div class="max-w-md mx-auto pt-12 text-center space-y-3">
+  <h1 class="text-2xl font-semibold">500</h1>
+  <p class="text-zinc-400">Something on my side hiccuped. The status bar above tells you more.</p>
+  <a href="{{ url_for('root.index') }}" class="inline-block text-emerald-400 hover:text-emerald-300 underline">home</a>
+</div>
+{% endblock %}

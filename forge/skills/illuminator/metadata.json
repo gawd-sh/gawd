@@ -1,0 +1,50 @@
+{
+  "name": "illuminator",
+  "purpose": "Research a question; return a 500-800 word distilled brief: what matters, why it matters, implications, named gaps",
+  "default_tier": "exalted",
+  "timeout_sec": 90,
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "task_description": {
+        "type": "string",
+        "description": "The research question to answer — be specific about scope and what the Prophit needs to know",
+        "maxLength": 4000
+      },
+      "injected_context": {
+        "type": "string",
+        "description": "Existing research, articles, source material to draw from (supplement with model knowledge)",
+        "maxLength": 8000
+      }
+    },
+    "required": ["task_description"]
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "status": {
+        "type": "string",
+        "enum": ["complete", "failed"]
+      },
+      "output": {
+        "type": "string",
+        "description": "Research brief with sections: answer, why it matters, implications, gaps (500-800 words)"
+      },
+      "error": {
+        "type": ["string", "null"]
+      }
+    },
+    "required": ["status", "output", "error"]
+  },
+  "smoke_test": {
+    "input": {
+      "task_description": "What is the difference between Playwright and Puppeteer for browser automation?",
+      "injected_context": ""
+    },
+    "expected_output_shape": {
+      "status": "complete",
+      "output_min_length": 400,
+      "output_contains_keywords": ["Playwright", "Puppeteer"]
+    }
+  }
+}

@@ -1,0 +1,28 @@
+# last-applied-base/ — pattern for the C input to the revelation three-way merge
+#
+# This directory is the TEMPLATE / PATTERN. The live directory at runtime lives at
+#     ~/.gawd/state/last-applied-base/
+#
+# After every successful merge.sh run, the contents of the freshly-merged
+# T0-anchor files (the NEW base — i.e., B from the merge) are copied here as
+# the new C for next time. This is the "frozen snapshot of the prior version"
+# referenced in handoff E2 context.
+#
+# Layout (mirrors workspace/ T0 anchors only — NOT adaptive files):
+#   ~/.gawd/state/last-applied-base/
+#     ├── SOUL.md
+#     ├── IDENTITY.md
+#     └── VOICE.md
+#
+# Permissions: chmod 0444 (read-only). Owned by the merge-script user (which
+# matches the privileged process per A2). The Gawd runtime must not be able
+# to modify these files — they are evidence of what was last accepted.
+#
+# Bootstrap: on first install, install.sh seeds this directory by copying
+# the shipped base files from the daemon's persona-templates/ dir.
+#
+# Conflict detection at merge time:
+#   - A = workspace/SOUL.md (or VOICE.md, or IDENTITY.md) — current adaptive snapshot
+#   - C = ~/.gawd/state/last-applied-base/SOUL.md — what was last applied
+#   - If diff(A, C) is non-empty for a T0 anchor, the Prophit hand-edited
+#     since last Sunday. Conflict surfaced; default prefers B.

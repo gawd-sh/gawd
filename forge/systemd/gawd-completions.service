@@ -1,0 +1,55 @@
+[Unit]
+Description=Gawd completions server (llama-server; local DemiGawd/cron completions)
+After=network-online.target
+Wants=network-online.target
+# Circuit-breaker (hardening 2): give up after 5 failures in 5 min, then alert.
+StartLimitIntervalSec=300
+StartLimitBurst=5
+OnFailure=gawd-failure-alert@%n.service
+
+[Service]
+Type=simple
+# Health-gated root of the dependency graph (no upstream). Model/port overridable
+# via gawd-completions.env (install.sh writes it when a completions model is present).
+EnvironmentFile=-%h/.gawd/state/gawd-completions.env
+Environment=GAWD_COMPLETIONS_PORT=11434
+Environment=GAWD_COMPLETIONS_MODEL=%h/.gawd/models/completions.gguf
+Environment=GAWD_COMPLETIONS_NGL=999
+ExecStart=/usr/bin/env llama-server \
+    --host 127.0.0.1 \
+    --port ${GAWD_COMPLETIONS_PORT} \
+    --model ${GAWD_COMPLETIONS_MODEL} \
+    --n-gpu-layers ${GAWD_COMPLETIONS_NGL}
+Restart=always
+RestartSec=10
+
+# BAKED LEAK GUARD (hardening 3 + TWO-additions #1): the COMPLETIONS llama-server
+# leaks too. On 2026-05-28 the 35B completions server (:11434) leaked to 22.8 GB
+# precisely because it was UNGUARDED while only the embed had the cycle guard.
+# An unguarded llama-server = guaranteed future freeze. EVERY local llama-server
+# unit the daemon ships carries RuntimeMaxSec + MemoryMax + Restart=always.
+# Completions cycle is 12h (not 6h) — a completions model is large and reload is
+# slower (model re-mmap), so we accept a longer window but still bound the leak.
+# Tunable via gawd-completions.env override.
+RuntimeMaxSec=43200
+
+# Memory ceiling (hardening 7): a 35B-class model's legitimate RSS is large, so
+# MemoryMax here is a function of box RAM, NOT a small fixed value — install.sh
+# writes a gawd-completions.service.d/memory.conf drop-in computed from
+# /proc/meminfo (D3 envelopes). The conservative cap below is the absolute
+# upper bound; the drop-in lowers it on small boxes. A completions model that
+# blows past this is a leak, not legitimate growth — systemd kills + restarts.
+MemoryMax=26G
+MemoryHigh=22G
+
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=%h/.gawd
+PrivateTmp=true
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=gawd-completions
+
+[Install]
+WantedBy=default.target

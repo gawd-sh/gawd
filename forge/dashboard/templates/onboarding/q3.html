@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Onboarding — Q3{% endblock %}
+{% block content %}
+<div class="max-w-md mx-auto pt-4 space-y-6">
+  <div class="text-xs text-zinc-500 uppercase tracking-wide">Step 3 of 4</div>
+  <h1 class="text-xl font-semibold">Language and time.</h1>
+  <p class="text-zinc-400 text-sm">In what tongue shall we speak, and on what clock shall I find you?</p>
+
+  <form method="post" action="{{ url_for('onboarding.q3_submit') }}" class="bg-zinc-900 border border-zinc-800 rounded p-5 space-y-4">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div>
+      <label for="language" class="block text-sm text-zinc-300 mb-1">Language (English by default)</label>
+      <input type="text" name="language" id="language" value="{{ state.get('lang', 'en') }}"
+             class="w-full bg-zinc-950 border border-zinc-700 rounded px-3 py-2 text-zinc-100 focus:outline-none focus:border-zinc-500"
+             placeholder="English, en, español…">
+    </div>
+    <div>
+      <label for="timezone" class="block text-sm text-zinc-300 mb-1">Timezone</label>
+      <input type="text" name="timezone" id="timezone" required value="{{ state.get('tz', '') }}"
+             class="w-full bg-zinc-950 border border-zinc-700 rounded px-3 py-2 text-zinc-100 focus:outline-none focus:border-zinc-500"
+             placeholder="America/Chicago, Europe/London, Asia/Tokyo…">
+      <p class="text-xs text-zinc-500 mt-1">Full IANA name preferred. Common abbreviations accepted (CDT, EST, GMT).</p>
+    </div>
+    {% if error %}
+      <p class="text-rose-400 text-sm">{{ error }}</p>
+    {% endif %}
+    <div class="flex justify-between">
+      <a href="{{ url_for('onboarding.q2') }}" class="text-zinc-400 hover:text-zinc-200 text-sm">← back</a>
+      <button type="submit" class="bg-emerald-700 hover:bg-emerald-600 text-white font-medium rounded px-4 py-2 transition">next</button>
+    </div>
+  </form>
+</div>
+{% endblock %}

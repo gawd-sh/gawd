@@ -1,0 +1,132 @@
+# next-none-fix.patch — OpenClaw gateway model-fallback iteration fix
+# ============================================================================
+# Bug: After the first provider failure (401/auth, or any failure when a
+# session has a non-"auto" model override), the fallback chain logs
+# `next=none` and stops — even when the operator's config has a fully
+# populated `agents.defaults.model.fallbacks` list.
+#
+# Root cause: src/agents/agent-scope.ts → resolveEffectiveModelFallbacks()
+# returns `[]` when (a) the session has a model override AND (b) the
+# override is not provenance-tagged "auto". That empty array is propagated
+# as `fallbacksOverride: []` into runWithModelFallback, where (per
+# src/agents/model-fallback.ts resolveFallbackCandidates) it REPLACES the
+# configured agents.defaults.model.fallbacks chain with an empty list.
+# Result: 1 candidate, 1 failure, terminal silence — the Dasra 2026-05-27
+# incident.
+#
+# Secondary bug: src/agents/agent-runner.runtime.ts →
+# resolveMemoryFlushModelFallbackOptions() hard-codes `fallbacksOverride: []`
+# whenever a memory-flush call uses a per-call model override. Same shape:
+# explicit empty array kills the chain.
+#
+# Reference contract: feedback_fallback_contract memory rule —
+#   "Pin = commitment, not preference. On pin-failure, revert to PRIMARY
+#    + chain (not next-in-chain)."
+# The current behavior is the inverse: pin-failure → no chain at all.
+#
+# Fix: do NOT emit an empty fallbacksOverride solely because a non-auto
+# pin is present. Honor the pin as the *primary* (which already happens —
+# the override sets provider/model), then let the configured chain follow.
+# Upstream provider-agnostic chain integrity is restored.
+#
+# Affected files in openclaw@2026.5.22 (filenames are bundler content-hashed
+# and DRIFT between releases — DO NOT match by exact name; the apply script
+# uses anchor-based replacement):
+#   dist/agent-scope-*.js              (function resolveEffectiveModelFallbacks)
+#   dist/agent-runner.runtime-*.js     (function resolveMemoryFlushModelFallbackOptions)
+#
+# Upstream issue to file: <PLACEHOLDER — set when issue is opened>
+# Upstream PR (if accepted, drop this patch): <PLACEHOLDER>
+#
+# Maintainer note: if upstream rejects the fix, this patch stays. Bump the
+# expected-openclaw-version below and re-validate against new bundler output
+# on every OpenClaw release.
+#
+# Expected-openclaw-version: 2026.5.22
+# Verified-against-version:  2026.5.22
+# Patch-author: The Metatron
+# Patch-date:   2026-05-27
+# Patch-id:     next-none-fix-v1
+# ============================================================================
+
+# ----------------------------------------------------------------------------
+# Hunk 1 — agent-scope: stop returning [] for non-"auto" pins
+# ----------------------------------------------------------------------------
+# Before (line ~264 in 2026.5.22):
+#   if (!(params.modelOverrideSource === "auto" || params.modelOverrideSource === void 0 && params.hasAutoFallbackProvenance === true)) return [];
+# After:
+#   // PATCHED next-none-fix-v1: never return [] solely because of a non-auto pin.
+#   // Honor the pin as primary; let the configured chain follow.
+#   // (Empty chain is still possible if neither agent-override nor defaults are configured.)
+#   // (No-op early return removed.)
+
+ANCHOR_AGENT_SCOPE_OLD<<'OLD'
+if (!(params.modelOverrideSource === "auto" || params.modelOverrideSource === void 0 && params.hasAutoFallbackProvenance === true)) return [];
+OLD
+
+ANCHOR_AGENT_SCOPE_NEW<<'NEW'
+/* PATCHED next-none-fix-v1: removed unconditional `return []` for non-auto pins. Honor pin as primary; let configured chain follow. */
+NEW
+
+# ----------------------------------------------------------------------------
+# Hunk 2 — agent-runner.runtime: stop hard-coding fallbacksOverride: [] for
+# memory-flush model overrides
+# ----------------------------------------------------------------------------
+# Before (line ~347):
+#   if (overrideProvider && overrideModel) return {
+#       ...options,
+#       provider: overrideProvider,
+#       model: overrideModel,
+#       fallbacksOverride: []
+#   };
+# After: remove `fallbacksOverride: []` — let upstream config supply the chain.
+#
+# Before (line ~353):
+#   return {
+#       ...options,
+#       model: override,
+#       fallbacksOverride: []
+#   };
+# After: remove `fallbacksOverride: []`.
+
+ANCHOR_MEMORY_FLUSH_PROVIDER_OLD<<'OLD'
+if (overrideProvider && overrideModel) return {
+			...options,
+			provider: overrideProvider,
+			model: overrideModel,
+			fallbacksOverride: []
+		};
+OLD
+
+ANCHOR_MEMORY_FLUSH_PROVIDER_NEW<<'NEW'
+if (overrideProvider && overrideModel) return {
+			...options,
+			provider: overrideProvider,
+			model: overrideModel
+			/* PATCHED next-none-fix-v1: removed `fallbacksOverride: []` so configured chain still applies after pin */
+		};
+NEW
+
+ANCHOR_MEMORY_FLUSH_BARE_OLD<<'OLD'
+return {
+		...options,
+		model: override,
+		fallbacksOverride: []
+	};
+OLD
+
+ANCHOR_MEMORY_FLUSH_BARE_NEW<<'NEW'
+return {
+		...options,
+		model: override
+		/* PATCHED next-none-fix-v1: removed `fallbacksOverride: []` so configured chain still applies after pin */
+	};
+NEW
+
+# ----------------------------------------------------------------------------
+# End of patch. apply-patches.sh interprets the ANCHOR_*_OLD / ANCHOR_*_NEW
+# heredoc pairs above and performs an exact textual substitution per pair.
+# This pattern survives bundler filename drift (CtLXGcWm vs whatever the
+# next release uses) because we match on the function-body content, not
+# filename or line number.
+# ----------------------------------------------------------------------------

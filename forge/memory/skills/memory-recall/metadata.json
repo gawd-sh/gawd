@@ -1,0 +1,63 @@
+{
+  "name": "memory-recall",
+  "purpose": "Recall relevant memory across all three tiers (T1 immediate context, T2 focus briefs, T3 long-term archive + wiki) and return one ranked, deduped, provenance-tagged block",
+  "default_tier": "deterministic",
+  "timeout_sec": 15,
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "query": {
+        "type": "string",
+        "description": "The recall query — a topic, phrase, or question to look up across all memory tiers",
+        "maxLength": 1000
+      },
+      "budget": {
+        "type": "integer",
+        "description": "Approximate token budget for the merged output (default: 2000). One token ~= 4 chars.",
+        "default": 2000
+      }
+    },
+    "required": ["query"]
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "status": {
+        "type": "string",
+        "enum": ["complete", "failed"]
+      },
+      "entries": {
+        "type": "array",
+        "description": "Ranked, deduped memory entries. Each entry has provenance (T1/T2/T3a/T3b), provenance_all (all tiers that had this fact), text, and score.",
+        "items": {
+          "type": "object",
+          "properties": {
+            "provenance": {"type": "string"},
+            "provenance_all": {"type": "array", "items": {"type": "string"}},
+            "text": {"type": "string"},
+            "score": {"type": "number"}
+          }
+        }
+      },
+      "tokens_used": {
+        "type": "integer",
+        "description": "Approximate token count of the merged entries"
+      },
+      "error": {
+        "type": ["string", "null"]
+      }
+    },
+    "required": ["status", "entries"]
+  },
+  "smoke_test": {
+    "input": {
+      "query": "system architecture",
+      "budget": 500
+    },
+    "expected_output_shape": {
+      "status": "complete",
+      "entries_is_list": true
+    }
+  },
+  "note": "This skill is deterministic (no LLM dispatch). skill.sh shells out to /usr/local/lib/gawd/memory/memory_recall.sh. Gracefully returns empty entries[] when all stores are absent — never fails."
+}

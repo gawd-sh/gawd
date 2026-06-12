@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Revelations — Gawd{% endblock %}
+{% block content %}
+<div class="max-w-2xl mx-auto pt-4 space-y-4">
+  <a href="{{ url_for('settings.settings_page') }}" class="text-zinc-400 hover:text-zinc-200 text-sm">← back to settings</a>
+  <h1 class="text-xl font-semibold">Recent revelations</h1>
+  {% if items %}
+    <ul class="space-y-3">
+      {% for it in items %}
+        <li class="bg-zinc-900 border border-zinc-800 rounded p-3">
+          <div class="text-xs text-zinc-500">{{ it.name }}</div>
+          {% if it.data.title %}
+            <div class="font-medium text-zinc-100 mt-1">{{ it.data.title }}</div>
+          {% endif %}
+          {% if it.data.summary %}
+            <div class="text-sm text-zinc-300 mt-1">{{ it.data.summary }}</div>
+          {% endif %}
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="text-zinc-400 text-sm">No revelations yet.</p>
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}Not found{% endblock %}
+{% block content %}
+<div class="max-w-md mx-auto pt-12 text-center space-y-3">
+  <h1 class="text-2xl font-semibold">404</h1>
+  <p class="text-zinc-400">That path doesn't exist on this Gawd.</p>
+  <a href="{{ url_for('root.index') }}" class="inline-block text-emerald-400 hover:text-emerald-300 underline">home</a>
+</div>
+{% endblock %}

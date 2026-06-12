@@ -1,0 +1,27 @@
+// Reference snapshot of the relevant function from
+// /usr/lib/node_modules/openclaw/dist/agent-runner.runtime-C3rgesYz.js
+// openclaw version 2026.5.22
+// Captured by Metatron 2026-05-27 for the next=none fix
+// (only the affected region is captured; full file is large)
+
+function resolveMemoryFlushModelFallbackOptions(run, model, configOverride = run.config) {
+	const options = resolveModelFallbackOptions(run, configOverride);
+	const override = normalizeOptionalString(model);
+	if (!override) return options;
+	const slashIdx = override.indexOf("/");
+	if (slashIdx > 0) {
+		const overrideProvider = override.slice(0, slashIdx).trim();
+		const overrideModel = override.slice(slashIdx + 1).trim();
+		if (overrideProvider && overrideModel) return {
+			...options,
+			provider: overrideProvider,
+			model: overrideModel,
+			fallbacksOverride: []
+		};
+	}
+	return {
+		...options,
+		model: override,
+		fallbacksOverride: []
+	};
+}

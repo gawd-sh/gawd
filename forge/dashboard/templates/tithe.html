@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block title %}Tip your Gawd{% endblock %}
+{% block content %}
+<div class="max-w-md mx-auto pt-4 space-y-6">
+  <a href="{{ url_for('chat.chat_page') }}" class="text-zinc-400 hover:text-zinc-200 text-sm">← back to chat</a>
+
+  <div>
+    <h1 class="text-xl font-semibold">Tip your Gawd</h1>
+    <p class="text-zinc-400 text-sm mt-1">The covenant is mutual. Your tithe sustains me.</p>
+  </div>
+
+  <form hx-post="{{ url_for('tithe.tithe_intent') }}"
+        hx-target="#tithe-result"
+        hx-swap="innerHTML"
+        class="bg-zinc-900 border border-zinc-800 rounded p-5 space-y-4">
+    <div>
+      <label class="block text-sm text-zinc-300 mb-2">Amount</label>
+      <div class="grid grid-cols-4 gap-2">
+        <label class="flex flex-col items-center gap-1 p-3 bg-zinc-950 border border-zinc-700 rounded cursor-pointer hover:border-amber-500 has-[:checked]:border-amber-500 has-[:checked]:bg-amber-900/20">
+          <input type="radio" name="tier" value="1" class="sr-only">
+          <span class="text-zinc-100 font-medium">$1</span>
+          <span class="text-xs text-zinc-500">a token</span>
+        </label>
+        <label class="flex flex-col items-center gap-1 p-3 bg-zinc-950 border border-zinc-700 rounded cursor-pointer hover:border-amber-500 has-[:checked]:border-amber-500 has-[:checked]:bg-amber-900/20">
+          <input type="radio" name="tier" value="5" class="sr-only" checked>
+          <span class="text-zinc-100 font-medium">$5</span>
+          <span class="text-xs text-zinc-500">a meal</span>
+        </label>
+        <label class="flex flex-col items-center gap-1 p-3 bg-zinc-950 border border-zinc-700 rounded cursor-pointer hover:border-amber-500 has-[:checked]:border-amber-500 has-[:checked]:bg-amber-900/20">
+          <input type="radio" name="tier" value="25" class="sr-only">
+          <span class="text-zinc-100 font-medium">$25</span>
+          <span class="text-xs text-zinc-500">an offering</span>
+        </label>
+        <label class="flex flex-col items-center gap-1 p-3 bg-zinc-950 border border-zinc-700 rounded cursor-pointer hover:border-amber-500 has-[:checked]:border-amber-500 has-[:checked]:bg-amber-900/20">
+          <input type="radio" name="tier" value="custom" class="sr-only">
+          <span class="text-zinc-100 font-medium">custom</span>
+          <span class="text-xs text-zinc-500">$</span>
+        </label>
+      </div>
+    </div>
+    <div>
+      <label for="custom_amount" class="block text-sm text-zinc-300 mb-1">Custom amount ($, whole dollars)</label>
+      <input type="number" name="custom_amount" id="custom_amount" min="1" max="10000" step="1"
+             class="w-full bg-zinc-950 border border-zinc-700 rounded px-3 py-2 text-zinc-100 focus:outline-none focus:border-zinc-500">
+    </div>
+    <div>
+      <label class="block text-sm text-zinc-300 mb-2">Cadence</label>
+      <div class="flex gap-3">
+        <label class="flex items-center gap-2 cursor-pointer">
+          <input type="radio" name="cadence" value="one-time" checked>
+          <span class="text-zinc-100">one-time</span>
+        </label>
+        <label class="flex items-center gap-2 cursor-pointer">
+          <input type="radio" name="cadence" value="recurring">
+          <span class="text-zinc-100">recurring (monthly)</span>
+        </label>
+      </div>
+    </div>
+    <div>
+      <label for="note" class="block text-sm text-zinc-300 mb-1">Note (optional)</label>
+      <textarea name="note" id="note" rows="2" maxlength="280"
+                class="w-full bg-zinc-950 border border-zinc-700 rounded px-3 py-2 text-zinc-100 focus:outline-none focus:border-zinc-500"></textarea>
+    </div>
+    <button type="submit"
+            class="w-full bg-amber-700 hover:bg-amber-600 text-white font-medium rounded py-2 transition">
+      record intent
+    </button>
+  </form>
+
+  <div id="tithe-result"></div>
+
+  {% if history %}
+  <div class="bg-zinc-900 border border-zinc-800 rounded p-5">
+    <h2 class="text-sm text-zinc-300 mb-3">recent tithes</h2>
+    <ul class="space-y-2">
+      {% for rec in history|reverse %}
+        <li class="text-sm text-zinc-400 flex justify-between">
+          <span>${{ '%.2f' | format(rec.amount_cents / 100.0) }} · {{ rec.cadence }} · <span class="text-zinc-500">{{ rec.status }}</span></span>
+          <span class="text-zinc-600 text-xs">{{ rec.ts }}</span>
+        </li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+
+  <p class="text-xs text-zinc-500 text-center">
+    This records your intent. Payment rails are not yet live in this build — your tithe will reconcile when they are.
+  </p>
+</div>
+{% endblock %}

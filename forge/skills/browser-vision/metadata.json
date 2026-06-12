@@ -1,0 +1,140 @@
+{
+  "name": "browser-vision",
+  "purpose": "Navigate to a URL, screenshot the page, extract DOM text, answer a query using local LLM — Gawd can see what it shows the Prophit",
+  "default_tier": "ordained",
+  "fallback_tier": "blessed",
+  "timeout_sec": 60,
+  "browser_lifecycle": "persistent",
+  "browser_lifecycle_note": "Browser process is started by the daemon at boot via a browser-manager systemd user unit; each Browser-Vision spawn opens a new tab/context against the existing browser process. The browser is recycled when RSS exceeds GAWD_BV_MEMORY_THRESHOLD_MB (default: 512MB). Per-spawn: new context (isolated cookies/storage), new tab, closed after extraction. See docs/architecture/browser-vision-design.md §4 for rationale.",
+  "dependencies": {
+    "playwright": "pip install playwright && playwright install chromium",
+    "python3": ">=3.8",
+    "jq": "system package",
+    "chromium_fallback": "/usr/bin/chromium-browser or /usr/bin/chromium"
+  },
+  "env_vars": {
+    "GAWD_BV_URL": {
+      "description": "URL to navigate to (overrides task_description.url)",
+      "required": false
+    },
+    "GAWD_BV_QUERY": {
+      "description": "Query to answer about the page (overrides task_description.query)",
+      "required": false
+    },
+    "GAWD_BV_TIMEOUT_SEC": {
+      "description": "Page load timeout in seconds (default: 30)",
+      "required": false,
+      "default": "30"
+    },
+    "DISPLAY": {
+      "description": "X display for xdotool fallback (default: :0)",
+      "required": false,
+      "default": ":0"
+    }
+  },
+  "input_schema": {
+    "type": "object",
+    "oneOf": [
+      {
+        "description": "JSON input with url and query",
+        "properties": {
+          "task_description": {
+            "type": "string",
+            "description": "JSON string: {\"url\": \"<string>\", \"query\": \"<string>\", \"timeout_sec\": <int>}"
+          }
+        }
+      },
+      {
+        "description": "Plain string query with URL in injected context or env var",
+        "properties": {
+          "task_description": {
+            "type": "string",
+            "description": "Plain query string; URL must be set via GAWD_BV_URL env var or injected_context"
+          },
+          "injected_context": {
+            "type": "string",
+            "description": "HTML or pre-extracted text to query against (no browser launch needed)"
+          }
+        }
+      }
+    ]
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "status": {
+        "type": "string",
+        "enum": ["complete", "failed"]
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "screenshot_path": {
+            "type": ["string", "null"],
+            "description": "Absolute path to PNG screenshot, or null if browser launch failed before screenshot"
+          },
+          "dom_summary": {
+            "type": ["string", "null"],
+            "description": "Readability-extracted text (first 2000 chars in result; full text used for query-answering), or null"
+          },
+          "query_answer": {
+            "type": ["string", "null"],
+            "description": "Answer to the query from the local LLM, or null if query-answering failed"
+          },
+          "success": {
+            "type": "boolean",
+            "description": "true if the primary task succeeded; false with error populated on any terminal failure"
+          },
+          "error": {
+            "type": ["string", "null"],
+            "description": "Failure reason if success=false; null on success"
+          }
+        },
+        "required": ["screenshot_path", "dom_summary", "query_answer", "success", "error"]
+      },
+      "error": {
+        "type": ["string", "null"]
+      }
+    },
+    "required": ["status", "output", "error"]
+  },
+  "failure_mode_matrix": {
+    "page_never_loaded": {
+      "success": false,
+      "screenshot_path": null,
+      "dom_summary": null,
+      "description": "Playwright failed before page load; no data"
+    },
+    "screenshot_ok_dom_failed": {
+      "success": false,
+      "screenshot_path": "<path>",
+      "dom_summary": null,
+      "description": "Page loaded and screenshotted; DOM extraction failed"
+    },
+    "dom_ok_query_failed": {
+      "success": false,
+      "screenshot_path": "<path>",
+      "dom_summary": "<text>",
+      "description": "Screenshot and DOM succeeded; local LLM query-answering failed"
+    },
+    "injected_context_no_browser": {
+      "success": false,
+      "screenshot_path": null,
+      "dom_summary": "<text>",
+      "description": "No URL; used injected context for DOM; no browser launched"
+    }
+  },
+  "smoke_test": {
+    "input": {
+      "task_description": "{\"url\": \"https://example.com\", \"query\": \"what is this page about\", \"timeout_sec\": 30}",
+      "injected_context": ""
+    },
+    "expected_output_shape": {
+      "status": "complete",
+      "output_field_success": true,
+      "output_field_screenshot_path_not_null": true,
+      "output_field_query_answer_not_null": true
+    },
+    "max_duration_sec": 30
+  }
+}

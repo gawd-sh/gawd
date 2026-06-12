@@ -1,0 +1,81 @@
+{
+  "name": "designer",
+  "purpose": "Design work and image generation — design direction, brand guidance, and Ideogram/MiniMax image gen via sub-skills",
+  "default_tier": "divine",
+  "timeout_sec": 120,
+  "env_vars": {
+    "GAWD_DESIGNER_GENERATE_IMAGE": {
+      "description": "Set to '1' to request image generation (default: 0)",
+      "required": false,
+      "default": "0"
+    },
+    "GAWD_DESIGNER_IMAGE_STYLE": {
+      "description": "Image style override: DESIGN, GENERAL, REALISTIC, RENDER_3D",
+      "required": false,
+      "default": "DESIGN"
+    },
+    "GAWD_DESIGNER_IMAGE_RATIO": {
+      "description": "Image aspect ratio override: 1:1, 16:9, 4:3, 9:16",
+      "required": false,
+      "default": "1:1"
+    }
+  },
+  "sub_skills": {
+    "ideogram-image": "required when GENERATE_IMAGE=1 and tool=ideogram",
+    "minimax-image": "required when GENERATE_IMAGE=1 and tool=minimax"
+  },
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "task_description": {
+        "type": "string",
+        "description": "Design brief: what to design, goal, format, audience",
+        "maxLength": 4000
+      },
+      "injected_context": {
+        "type": "string",
+        "description": "Brand assets, style references, existing visual material",
+        "maxLength": 8000
+      }
+    },
+    "required": ["task_description"]
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "status": {
+        "type": "string",
+        "enum": ["complete", "failed"]
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "design_output": {
+            "type": "string",
+            "description": "Design direction, recommendations, and/or image prompt"
+          },
+          "image_path": {
+            "type": ["string", "null"],
+            "description": "Absolute path to generated image PNG, or null if no image was generated"
+          }
+        },
+        "required": ["design_output", "image_path"]
+      },
+      "error": {
+        "type": ["string", "null"]
+      }
+    },
+    "required": ["status", "output", "error"]
+  },
+  "smoke_test": {
+    "input": {
+      "task_description": "Recommend a color palette for a fintech startup targeting young professionals. Dark mode.",
+      "injected_context": ""
+    },
+    "expected_output_shape": {
+      "status": "complete",
+      "output_field": "design_output",
+      "output_contains_keywords": ["#", "background", "accent"]
+    }
+  }
+}

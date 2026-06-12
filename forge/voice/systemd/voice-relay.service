@@ -1,0 +1,70 @@
+[Unit]
+Description=Gawd Voice Relay (browser-mic WebSocket relay; model-agnostic)
+Documentation=https://gawd.sh/runbooks/voice-relay
+Documentation=file:///usr/local/lib/gawd/voice/README.md
+# Voice is OPTIONAL per Architecture §9 — daemon and Telegram channel run
+# without this unit. Only start when the Prophit has wired up the browser
+# relay. Failure here must NEVER cascade into daemon startup failures; see
+# config-schema.json fail_graceful.on_missing_api_key.
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+# Loaded by name; the daemon does not assume a Node version path. Override
+# via systemctl edit if the deployment uses a different node binary.
+Environment=PATH=/usr/local/bin:/usr/bin:/bin
+Environment=NODE_ENV=production
+# Config + LLM call binary paths are overridable. Defaults assume Forge-shipped layout.
+Environment=GAWD_VOICE_CONFIG=%h/.gawd/state/voice.json
+# In-image canonical paths (H-2 fix, phase4-20260609): resolved to /usr/local/lib/gawd/
+# which is where Dockerfile installs all daemon components. Override via
+# `systemctl edit voice-relay.service` if your layout differs.
+Environment=GAWD_VOICE_SCHEMA=/usr/local/lib/gawd/voice/config-schema.json
+Environment=GAWD_LLM_CALL_BIN=/usr/local/lib/gawd/bin/gawdfather-llm-call
+# API keys come from the secrets vault via systemd EnvironmentFile.
+# This is the canonical pattern: NEVER bake key values into this unit.
+# secrets-meta.json declares which env vars to wire; install.sh provisions
+# /etc/gawd/voice.env with the right key=value pairs from ~/.secrets/.
+EnvironmentFile=-/etc/gawd/voice.env
+
+WorkingDirectory=%h
+# In-image the relay lives at /usr/local/lib/gawd/voice/browser-relay.mjs.
+# Override via systemctl edit for bare-metal layouts with different paths.
+ExecStart=/usr/bin/env node /usr/local/lib/gawd/voice/browser-relay.mjs
+
+# Per acceptance criterion 9: Restart=on-failure — voice is opt-in, not
+# always-on. A clean exit (config disabled, missing keys, or graceful
+# shutdown) must NOT auto-restart. Crashes do.
+Restart=on-failure
+RestartSec=10s
+# Cap restart attempts so a misconfigured relay doesn't burn CPU forever.
+StartLimitBurst=5
+StartLimitIntervalSec=10min
+
+# Sandboxing — the relay only needs HOME write and outbound HTTPS.
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=%h/.gawd /tmp
+PrivateTmp=true
+NoNewPrivileges=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictNamespaces=true
+LockPersonality=true
+
+# Resource caps — voice is one small piece of the daemon's surface.
+MemoryMax=512M
+TasksMax=64
+CPUWeight=80
+
+# Stdout/stderr → journal (so journalctl -u voice-relay.service works).
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=gawd-voice-relay
+
+[Install]
+WantedBy=default.target

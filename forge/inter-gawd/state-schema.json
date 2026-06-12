@@ -1,0 +1,122 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://gawd.sh/schemas/inter-gawd-state-v1.json",
+  "title": "InterGawdStateBundle",
+  "description": "Three state files used by the inter-Gawd protocol. Each is a separate JSON document on disk; this schema describes their union for reference. Per spec §13 and handoff E4.",
+  "type": "object",
+  "properties": {
+    "household_gawds": {
+      "description": "File: ~/.gawd/state/household-gawds.json. Peers known to this Gawd. Populated during onboarding or via a future /household slash command (§17.9 — discovery mechanism is open). The gossip channel feature degrades gracefully when this is empty per §17.9.",
+      "type": "object",
+      "required": ["peers"],
+      "additionalProperties": false,
+      "properties": {
+        "peers": {
+          "description": "Array of peer Gawd descriptors. May be empty (single-Gawd household).",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["gawd_id", "telegram_bot_id"],
+            "additionalProperties": false,
+            "properties": {
+              "gawd_id": {
+                "description": "Peer Gawd's stable identifier (matches the 'from' field that peer emits in GAWD-MSG headers).",
+                "type": "string",
+                "minLength": 1
+              },
+              "telegram_bot_id": {
+                "description": "Peer's Telegram bot user ID (numeric string form). Used for opt-in bot-to-bot DMs per Bot API 10.0.",
+                "type": "string",
+                "pattern": "^[0-9]+$"
+              },
+              "telegram_bot_username": {
+                "description": "Peer's @-username without the leading @ (optional but useful for invites).",
+                "type": "string"
+              },
+              "added_at": {
+                "description": "ISO-8601 timestamp when this peer was added.",
+                "type": "string",
+                "format": "date-time"
+              }
+            }
+          }
+        }
+      }
+    },
+    "gossip_channel": {
+      "description": "File: ~/.gawd/state/gossip-channel.json. Set when the first /quiet invocation in this household has caused channel creation. Absent until then.",
+      "type": "object",
+      "required": ["channel_id", "channel_title", "created_by_gawd_id", "created_at"],
+      "additionalProperties": false,
+      "properties": {
+        "channel_id": {
+          "description": "Telegram chat_id of the gossip channel (negative for groups/supergroups). Stored as string to avoid 64-bit-int handling issues across jq/python.",
+          "type": "string"
+        },
+        "channel_title": {
+          "description": "Display name of the gossip channel (e.g., 'greenlee-gossip').",
+          "type": "string"
+        },
+        "invite_link": {
+          "description": "Telegram invite link for the channel, if created. Used to onboard peer bots and the Prophit. Optional.",
+          "type": "string"
+        },
+        "created_by_gawd_id": {
+          "description": "Which Gawd in the household created the channel (first /quiet recipient).",
+          "type": "string"
+        },
+        "created_at": {
+          "description": "ISO-8601 timestamp when the channel record was first written.",
+          "type": "string",
+          "format": "date-time"
+        },
+        "peer_invitations": {
+          "description": "Audit trail of bot-to-bot opt-in attempts per peer.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["peer_gawd_id", "invited_at", "status"],
+            "additionalProperties": false,
+            "properties": {
+              "peer_gawd_id": {"type": "string"},
+              "invited_at": {"type": "string", "format": "date-time"},
+              "status": {
+                "type": "string",
+                "enum": ["sent", "joined", "failed", "pending-opt-in"]
+              },
+              "note": {"type": "string"}
+            }
+          }
+        }
+      }
+    },
+    "inter_gawd_routing": {
+      "description": "File: ~/.gawd/state/inter-gawd-routing.json. Tracks current quiet/loud routing for this Gawd. Absent → default (loud, main channel).",
+      "type": "object",
+      "required": ["mode", "set_at"],
+      "additionalProperties": false,
+      "properties": {
+        "mode": {
+          "description": "'loud' = inter-Gawd traffic in main channel (default); 'quiet' = in gossip channel.",
+          "type": "string",
+          "enum": ["loud", "quiet"]
+        },
+        "set_at": {
+          "description": "ISO-8601 timestamp when the current mode was set.",
+          "type": "string",
+          "format": "date-time"
+        },
+        "expires_at": {
+          "description": "ISO-8601 timestamp when /quiet automatically lifts. Absent → indefinite (or N/A for 'loud').",
+          "type": "string",
+          "format": "date-time"
+        },
+        "set_by_prophit_id": {
+          "description": "Telegram user ID of the Prophit who issued the slash command.",
+          "type": "string",
+          "pattern": "^[0-9]+$"
+        }
+      }
+    }
+  }
+}

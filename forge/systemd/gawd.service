@@ -1,0 +1,58 @@
+[Unit]
+Description=Gawd Daemon gateway (OpenClaw; the Prophit's Gawd)
+After=network-online.target
+Wants=network-online.target
+# Optional ordering after the local llama-servers when present. These are
+# Wants (not Requires) so a remote-embed / remote-completions Gawd, or one
+# whose llama-servers are momentarily down, still brings the gateway up
+# (silence-is-worst-outcome: a gateway up beats no gateway). The health-gate
+# ExecStartPre below makes "ordered after" mean "actually ready" when local.
+Wants=gawd-embed.service gawd-completions.service
+After=gawd-embed.service gawd-completions.service
+# Circuit-breaker (hardening 2): give up after 5 failures in 5 min, then alert
+# the Prophit. No 79K storm; no silent death.
+StartLimitIntervalSec=300
+StartLimitBurst=5
+OnFailure=gawd-failure-alert@%n.service
+
+[Service]
+Type=simple
+Environment=GAWD_HOME=%h/.gawd
+Environment=GAWD_PORT=18789
+Environment=GAWD_INSTALL_DIR=/opt/gawd
+# V8 heap (tarball hardening 2.2). The install.sh-written memory.conf drop-in
+# may raise/lower this per detected RAM (D3 envelopes).
+Environment=NODE_OPTIONS=--max-old-space-size=6144
+
+# Clean-state-on-boot (hardening 5): runs BEFORE the gateway opens the store.
+# Leading '-' = warn-not-fatal; a hygiene hiccup must never block boot.
+ExecStartPre=-%h/.gawd/scripts/gawd-clean-state.sh
+
+# Health-gated startup (hardening 4): when a LOCAL embed is in use, wait for its
+# /health before the gateway opens memory routes. install.sh writes a
+# gawd.service.d/embed-gate.conf drop-in with this line ONLY for local-embed
+# Gawds; remote-embed Gawds omit it (no embed to wait on). Leading '-' = the
+# gateway starts anyway on embed-timeout (silence-is-worst-outcome).
+
+ExecStart=/usr/bin/env node ${GAWD_INSTALL_DIR}/dist/index.js gateway --port ${GAWD_PORT}
+Restart=always
+RestartSec=10
+
+# Memory ceiling (hardening 7): install.sh writes gawd.service.d/memory.conf
+# computed from /proc/meminfo (MemoryMax=min(7G,60% RAM), MemoryHigh=min(5G,45%)).
+# These unit values are the cap on a large box; the drop-in lowers them on a
+# small prophit-vm so the percentages map to real ceilings (D3).
+MemoryMax=7G
+MemoryHigh=5G
+
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=%h/.gawd %h/.openclaw
+PrivateTmp=true
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=gawd-gateway
+
+[Install]
+WantedBy=default.target

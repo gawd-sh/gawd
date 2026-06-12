@@ -1,0 +1,9 @@
+{% if ok %}
+  <div class="bg-emerald-900/30 border border-emerald-800 rounded p-3 text-emerald-100 text-sm">
+    Proposal recorded. Gawd will review at next reflection cycle.
+  </div>
+{% else %}
+  <div class="bg-rose-900/30 border border-rose-800 rounded p-3 text-rose-100 text-sm">
+    {{ error or "Could not record proposal." }}
+  </div>
+{% endif %}

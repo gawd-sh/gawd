@@ -1,0 +1,15 @@
+// Reference snapshot of the relevant function from
+// /usr/lib/node_modules/openclaw/dist/agent-scope-CtLXGcWm.js
+// openclaw version 2026.5.22
+// Captured by Metatron 2026-05-27 for the next=none fix
+// (only the affected region is captured; full file is large)
+
+function resolveEffectiveModelFallbacks(params) {
+	const agentFallbacksOverride = resolveAgentModelFallbacksOverride(params.cfg, params.agentId);
+	if (!params.hasSessionModelOverride) return agentFallbacksOverride;
+	if (!(params.modelOverrideSource === "auto" || params.modelOverrideSource === void 0 && params.hasAutoFallbackProvenance === true)) return [];
+	const subagentFallbacksOverride = isSubagentSessionKey(params.sessionKey) ? resolveSubagentSpawnModelFallbacksOverride(params.cfg, params.agentId) : void 0;
+	if (subagentFallbacksOverride !== void 0) return subagentFallbacksOverride;
+	const defaultFallbacks = resolveAgentModelFallbackValues(params.cfg.agents?.defaults?.model);
+	return agentFallbacksOverride ?? defaultFallbacks;
+}

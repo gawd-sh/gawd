@@ -1,0 +1,223 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://gawd.sh/schemas/voice-config.json",
+  "title": "Gawd Voice Configuration",
+  "description": "Voice modality config block. Source of truth lives in IDENTITY.md (T0 anchor) under the 'Voice' section; this schema validates that block plus the supplementary runtime fields read from ~/.gawd/state/voice.json. Per Architecture §9: voice is model-agnostic — STT/LLM/TTS providers are all swappable. Per gospel §1 principle 1: never hardwire a provider or model name into code.",
+  "type": "object",
+  "required": ["llm", "stt", "tts", "voice_id"],
+  "additionalProperties": false,
+
+  "properties": {
+    "enabled": {
+      "type": "boolean",
+      "default": false,
+      "description": "When false, voice subsystem fails graceful and the daemon runs text-only. Per acceptance criterion 8, voice is opt-in; missing keys must not break daemon startup."
+    },
+
+    "voice_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Per-Gawd-per-Prophit TTS voice identifier. Provider-specific (e.g., ElevenLabs voice ID 'EXAVITQu4vr4xnSDxMaL'). Lives in IDENTITY.md per spec §9.4. The Gawd does NOT change this mid-relationship without Prophit consent; changes are logged in MEMORY.md and routed through the /voice slash command (see runbook §5)."
+    },
+
+    "llm": {
+      "type": "object",
+      "description": "LLM section for the voice loop. Reads through the same chain as the rest of the daemon (via gawdfather-llm-call), so model swaps in OpenClaw config apply here too. NEVER hardwire model names in voice code.",
+      "required": ["mode"],
+      "additionalProperties": false,
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": ["chain", "tier", "explicit"],
+          "default": "chain",
+          "description": "How the voice loop resolves the model. 'chain' = use the OpenClaw primary chain (default; same model the Gawd uses elsewhere). 'tier' = use a Pantheon tier hint (spec §6.5) — e.g., blessed for fast/cheap voice replies. 'explicit' = use a specific model id (escape hatch; flagged as drift in audit logs)."
+        },
+        "tier": {
+          "type": "string",
+          "enum": ["divine", "exalted", "blessed", "sanctified", "ordained", "faithful"],
+          "description": "Required when mode='tier'. Selects which Pantheon rung handles voice-loop LLM calls. Lower tiers are appropriate for voice because turns are short and latency-sensitive."
+        },
+        "model_id": {
+          "type": "string",
+          "description": "Required when mode='explicit'. Provider/model string per the OpenClaw chain convention (format: '<provider>/<model-id>'). Only used when the operator explicitly chose to pin; logged as drift in the daily audit. NOTE: pinning a specific model here recreates the hardwire pattern this subsystem is designed to eliminate."
+        },
+        "max_tokens": {
+          "type": "integer",
+          "minimum": 32,
+          "maximum": 4096,
+          "default": 512,
+          "description": "Cap on response length. Voice replies should be short by default; long replies break the cadence of a spoken conversation."
+        }
+      }
+    },
+
+    "stt": {
+      "type": "object",
+      "description": "Speech-to-text provider config. ElevenLabs is the default but the field is provider-agnostic; any provider implementing the transcribe(audio_bytes) interface qualifies. See runbook §3 for adding alternate providers.",
+      "required": ["provider", "api_key_env"],
+      "additionalProperties": false,
+      "properties": {
+        "provider": {
+          "type": "string",
+          "enum": ["elevenlabs", "openai-whisper-api", "local-whisper", "mock"],
+          "default": "elevenlabs",
+          "description": "Provider implementation to load at startup. 'mock' is for tests (deterministic transcription output). 'local-whisper' is the privacy-preserving option but requires the local whisper.cpp server (port not yet specified in spec)."
+        },
+        "api_key_env": {
+          "type": "string",
+          "default": "ELEVENLABS_API_KEY",
+          "description": "Name of the environment variable that holds the API key. NEVER the key value itself. The secrets helper (~/.local/bin/secrets) writes the env var at runtime."
+        },
+        "language": {
+          "type": "string",
+          "default": "auto",
+          "description": "STT language hint. 'auto' lets the provider detect. Otherwise an ISO 639-1 code (e.g., 'en', 'es'). Default 'auto' covers multi-language households."
+        },
+        "endpoint_override": {
+          "type": "string",
+          "format": "uri",
+          "description": "Optional: replace the provider's default API endpoint. Used for self-hosted or proxied deployments. Documented in runbook §4."
+        }
+      }
+    },
+
+    "tts": {
+      "type": "object",
+      "description": "Text-to-speech provider config. Mirrors STT structure. ElevenLabs default; voice_id at the top level is what gets passed to the provider's speak() call.",
+      "required": ["provider", "api_key_env"],
+      "additionalProperties": false,
+      "properties": {
+        "provider": {
+          "type": "string",
+          "enum": ["elevenlabs", "openai-tts", "local-piper", "mock"],
+          "default": "elevenlabs",
+          "description": "Provider implementation. 'mock' for tests. 'local-piper' is the local privacy-preserving option."
+        },
+        "api_key_env": {
+          "type": "string",
+          "default": "ELEVENLABS_API_KEY",
+          "description": "Env var name (not the value). Often the same as STT for ElevenLabs."
+        },
+        "format": {
+          "type": "string",
+          "enum": ["mp3", "ogg_opus", "pcm_16000"],
+          "default": "mp3",
+          "description": "Output audio format. 'ogg_opus' is preferred for Telegram voice notes (native format). 'pcm_16000' for browser-relay raw audio streaming."
+        },
+        "stability": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "default": 0.5,
+          "description": "Provider-specific tuning knob; harmless to non-ElevenLabs providers (ignored)."
+        },
+        "similarity_boost": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "default": 0.75,
+          "description": "Provider-specific; same caveat as stability."
+        },
+        "endpoint_override": {
+          "type": "string",
+          "format": "uri",
+          "description": "Optional API endpoint override."
+        }
+      }
+    },
+
+    "browser_relay": {
+      "type": "object",
+      "description": "Browser-mic WebSocket relay config. Required only if the relay is wired up; the daemon runs voice-via-Telegram fine without it.",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "When false, the browser-relay systemd unit stays inactive."
+        },
+        "port": {
+          "type": "integer",
+          "minimum": 1024,
+          "maximum": 65535,
+          "default": 8080,
+          "description": "WebSocket server port. Loopback-bound; exposed externally via cloudflared (Prophit-VM/bare-metal) or Tailscale Serve (hosted rung)."
+        },
+        "bind_address": {
+          "type": "string",
+          "default": "127.0.0.1",
+          "description": "Bind address. Default loopback. Operators who choose to bind 0.0.0.0 must front the relay with a TLS terminator and auth — never expose raw."
+        },
+        "max_session_seconds": {
+          "type": "integer",
+          "minimum": 30,
+          "maximum": 7200,
+          "default": 600,
+          "description": "Cap on a single relay session. Defense against runaway loops and stuck mic-open conditions."
+        },
+        "cloudflared_hostname": {
+          "type": "string",
+          "description": "FQDN the cloudflared tunnel exposes (e.g., 'lilith.gawd.sh'). Single-level subdomain only (the wildcard cert at gawd.sh does not cover multi-level)."
+        },
+        "allowed_origins": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": [],
+          "description": "BLOCKER 4: Origin allowlist for the WebSocket upgrade (e.g., ['https://lilith.gawd.sh']). If empty and cloudflared_hostname is set, the relay derives ['https://<cloudflared_hostname>']. If both are empty, ALL browser origins are rejected (fail closed) — an explicit opt-in is required to expose the relay."
+        }
+      }
+    },
+
+    "telegram_voice": {
+      "type": "object",
+      "description": "Telegram voice-note handling. v1 commitment per acceptance criterion 7 — ships day-1 whether browser-relay does or does not.",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Default ON. Telegram is the primary surface; voice-note handling is free given the bot already exists."
+        },
+        "auto_reply_format": {
+          "type": "string",
+          "enum": ["voice", "text+voice", "text"],
+          "default": "voice",
+          "description": "How the Gawd replies to a voice-note. 'voice' = TTS-generated voice-note back. 'text+voice' = both (Prophit gets transcript + audio). 'text' = text only (useful if TTS provider is unavailable)."
+        },
+        "max_voice_seconds": {
+          "type": "integer",
+          "minimum": 5,
+          "maximum": 600,
+          "default": 120,
+          "description": "Cap on inbound voice-note length. Longer notes get a polite refusal asking for a transcript or breakdown."
+        }
+      }
+    },
+
+    "fail_graceful": {
+      "type": "object",
+      "description": "What the daemon does when voice infrastructure breaks. Per gospel §1 principle reliability + handoff acceptance criterion 8: voice is optional; failures must not cascade.",
+      "additionalProperties": false,
+      "properties": {
+        "on_stt_failure": {
+          "type": "string",
+          "enum": ["text_apology", "silent_drop", "retry_once_then_text"],
+          "default": "retry_once_then_text",
+          "description": "If STT fails to transcribe: 'text_apology' = reply in text explaining; 'silent_drop' = log and ignore; 'retry_once_then_text' = one retry then fall back to text."
+        },
+        "on_tts_failure": {
+          "type": "string",
+          "enum": ["text_only", "retry_once_then_text"],
+          "default": "retry_once_then_text",
+          "description": "If TTS fails to synthesize: degrade to text reply. Never silently drop the Gawd's response."
+        },
+        "on_missing_api_key": {
+          "type": "string",
+          "enum": ["disable_voice", "fail_daemon"],
+          "default": "disable_voice",
+          "description": "At daemon startup, if voice is enabled but STT/TTS keys missing. Default 'disable_voice' means daemon comes up text-only and voice features unbind. Per acceptance criterion 8: voice must NEVER block daemon startup."
+        }
+      }
+    }
+  }
+}

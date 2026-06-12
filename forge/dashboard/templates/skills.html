@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Skills — Gawd{% endblock %}
+{% block content %}
+<div class="max-w-2xl mx-auto pt-4 space-y-4">
+  <a href="{{ url_for('settings.settings_page') }}" class="text-zinc-400 hover:text-zinc-200 text-sm">← back to settings</a>
+  <h1 class="text-xl font-semibold">Installed skills</h1>
+  {% if skills %}
+    <ul class="space-y-2">
+      {% for s in skills %}
+        <li class="bg-zinc-900 border border-zinc-800 rounded p-3">
+          <div class="font-medium text-zinc-100">{{ s.name }}</div>
+          {% if s.meta.description %}
+            <div class="text-sm text-zinc-400 mt-1">{{ s.meta.description }}</div>
+          {% endif %}
+          {% if s.meta.version %}
+            <div class="text-xs text-zinc-500 mt-1">v{{ s.meta.version }}</div>
+          {% endif %}
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="text-zinc-400 text-sm">No skills installed yet.</p>
+  {% endif %}
+</div>
+{% endblock %}

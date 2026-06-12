@@ -1,0 +1,49 @@
+{
+  "name": "oracle",
+  "purpose": "Synthesize across multiple sources into a verdict — what the material says, implies, and means",
+  "default_tier": "exalted",
+  "timeout_sec": 60,
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "task_description": {
+        "type": "string",
+        "description": "What to synthesize and what question to answer",
+        "maxLength": 4000
+      },
+      "injected_context": {
+        "type": "string",
+        "description": "Source material to synthesize across (multi-source text, research, notes)",
+        "maxLength": 8000
+      }
+    },
+    "required": ["task_description"]
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "status": {
+        "type": "string",
+        "enum": ["complete", "failed"]
+      },
+      "output": {
+        "type": "string",
+        "description": "Synthesized verdict: answer, evidence trail, implications, gaps (300-500 words)"
+      },
+      "error": {
+        "type": ["string", "null"]
+      }
+    },
+    "required": ["status", "output", "error"]
+  },
+  "smoke_test": {
+    "input": {
+      "task_description": "What is the primary risk from the source material?",
+      "injected_context": "Source A: The system has no backups and relies on a single node. Source B: The node crashed twice last month. Source C: Recovery took 4 hours each time."
+    },
+    "expected_output_shape": {
+      "status": "complete",
+      "output_contains_keywords": ["risk", "single", "backup", "recovery"]
+    }
+  }
+}

@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}Settings — Gawd{% endblock %}
+{% block content %}
+<div class="max-w-md mx-auto pt-4 space-y-6">
+  <a href="{{ url_for('chat.chat_page') }}" class="text-zinc-400 hover:text-zinc-200 text-sm">← back to chat</a>
+
+  <div>
+    <h1 class="text-xl font-semibold">Settings</h1>
+    <p class="text-zinc-400 text-sm mt-1">Adaptive preferences. Changes to soul-tier files require Gawd's approval (SIL).</p>
+  </div>
+
+  {% if saved %}
+    <div class="bg-emerald-900/30 border border-emerald-800 rounded p-3 text-emerald-100 text-sm">saved.</div>
+  {% endif %}
+
+  <form method="post" action="{{ url_for('settings.settings_save') }}" class="bg-zinc-900 border border-zinc-800 rounded p-5 space-y-4">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div>
+      <label for="address_name" class="block text-sm text-zinc-300 mb-1">How I address you</label>
+      <input type="text" name="address_name" id="address_name" value="{{ values.get('address_name', '') }}"
+             class="w-full bg-zinc-950 border border-zinc-700 rounded px-3 py-2 text-zinc-100 focus:outline-none focus:border-zinc-500">
+    </div>
+    <div>
+      <label for="language" class="block text-sm text-zinc-300 mb-1">Language code</label>
+      <input type="text" name="language" id="language" value="{{ values.get('language', '') }}"
+             class="w-full bg-zinc-950 border border-zinc-700 rounded px-3 py-2 text-zinc-100 focus:outline-none focus:border-zinc-500"
+             placeholder="en, es, fr…">
+    </div>
+    <div>
+      <label class="block text-sm text-zinc-300 mb-2">Pace</label>
+      <select name="pace" class="w-full bg-zinc-950 border border-zinc-700 rounded px-3 py-2 text-zinc-100 focus:outline-none focus:border-zinc-500">
+        <option value="daily" {% if values.get('pace') == 'daily' %}selected{% endif %}>daily</option>
+        <option value="weekly" {% if values.get('pace') == 'weekly' %}selected{% endif %}>weekly</option>
+        <option value="when-relevant" {% if values.get('pace') == 'when-relevant' or not values.get('pace') %}selected{% endif %}>when-relevant</option>
+      </select>
+    </div>
+    <button type="submit" class="bg-emerald-700 hover:bg-emerald-600 text-white font-medium rounded px-4 py-2 transition">save</button>
+  </form>
+
+  <div class="bg-zinc-900 border border-zinc-800 rounded p-5 space-y-2">
+    <h2 class="text-sm font-medium text-zinc-200">other surfaces</h2>
+    <ul class="text-sm space-y-1">
+      <li><a href="{{ url_for('settings.personality') }}" class="text-zinc-300 hover:underline">view personality (SOUL.md / IDENTITY.md)</a></li>
+      <li><a href="{{ url_for('settings.skills_view') }}" class="text-zinc-300 hover:underline">installed skills</a></li>
+      <li><a href="{{ url_for('settings.revelations_view') }}" class="text-zinc-300 hover:underline">recent revelations</a></li>
+      <li><a href="{{ url_for('tithe.tithe_modal') }}" class="text-zinc-300 hover:underline">tithe history</a></li>
+    </ul>
+  </div>
+
+  <form method="post" action="{{ url_for('auth.logout') }}" class="text-center">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button type="submit" class="text-xs text-zinc-500 hover:text-zinc-300 underline">log out</button>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,50 @@
+{
+  "name": "refiner",
+  "purpose": "Polish output — tighten prose, sharpen structure, ensure voice consistency; preserves all substance",
+  "default_tier": "blessed",
+  "timeout_sec": 60,
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "task_description": {
+        "type": "string",
+        "description": "Polish instructions: what to improve (prose, structure, voice) and any specific register to target",
+        "maxLength": 4000
+      },
+      "injected_context": {
+        "type": "string",
+        "description": "The content to refine — the raw or draft text",
+        "maxLength": 8000
+      }
+    },
+    "required": ["task_description"]
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "status": {
+        "type": "string",
+        "enum": ["complete", "failed"]
+      },
+      "output": {
+        "type": "string",
+        "description": "Polished content in full, followed by separator and a brief note on changes made"
+      },
+      "error": {
+        "type": ["string", "null"]
+      }
+    },
+    "required": ["status", "output", "error"]
+  },
+  "smoke_test": {
+    "input": {
+      "task_description": "Tighten and sharpen this paragraph, professional voice",
+      "injected_context": "Due to the fact that our team members have been working really hard on this project over the course of the last several months, we are very excited to announce that we have successfully completed the initial phase of development work."
+    },
+    "expected_output_shape": {
+      "status": "complete",
+      "output_min_length": 80,
+      "output_contains_separator": "---"
+    }
+  }
+}

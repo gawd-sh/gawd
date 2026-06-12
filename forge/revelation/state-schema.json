@@ -1,0 +1,79 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://gawd.sh/schemas/pending-revelation-v1.json",
+  "title": "PendingRevelation",
+  "description": "State file recording an offered (or accepted/declined) revelation. Lives at ~/.gawd/state/pending-revelation.json. Per spec §10.3, §10.4 and handoff E2.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "revelation_version",
+    "offered_at",
+    "prophit_response",
+    "missed_offers_count"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "description": "Schema version of this state file (independent of revelation version).",
+      "type": "string",
+      "const": "1.0"
+    },
+    "revelation_version": {
+      "description": "Semver of the base-soul revelation being offered (e.g., '0.4.2'). The Sermon Channel (E5) sets this; the Gawd never invents it.",
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(-[A-Za-z0-9.-]+)?$"
+    },
+    "revelation_bundle_path": {
+      "description": "Absolute path on the local filesystem where the unpacked new-base files live (B dir for the merge). Written by offer.sh after the Sermon Channel delivers the bundle.",
+      "type": "string",
+      "minLength": 1
+    },
+    "offered_at": {
+      "description": "ISO-8601 timestamp when the offer was surfaced to the Prophit.",
+      "type": "string",
+      "format": "date-time"
+    },
+    "prophit_response": {
+      "description": "How the Prophit answered. 'pending' until they respond. 'accepted' = will apply at next 4am. 'declined' = explicit decline (does NOT increment missed_offers_count). 'auto-declined' = silence reached the missed-offer threshold (3 consecutive).",
+      "type": "string",
+      "enum": ["pending", "accepted", "declined", "auto-declined"]
+    },
+    "response_at": {
+      "description": "ISO-8601 timestamp when the Prophit responded (or auto-decline fired). Absent while pending.",
+      "type": "string",
+      "format": "date-time"
+    },
+    "applied": {
+      "description": "Whether merge.sh has applied this revelation. Only meaningful when prophit_response = 'accepted'. Set true after a successful merge.sh run.",
+      "type": "boolean",
+      "default": false
+    },
+    "applied_at": {
+      "description": "ISO-8601 timestamp when merge.sh successfully completed.",
+      "type": "string",
+      "format": "date-time"
+    },
+    "missed_offers_count": {
+      "description": "Count of consecutive missed offers across revelation versions. Silence increments; explicit 'declined' does NOT. Auto-decline fires at 3. Resets to 0 when the Prophit responds (accept OR decline).",
+      "type": "integer",
+      "minimum": 0
+    },
+    "conflict_surfaced": {
+      "description": "True if merge.sh detected a Prophit hand-edit conflict on a soul-anchor file and wrote a conflict report to workspace/sil/conflicts/. The next session-start hook reads conflict_surfaced and the report file path.",
+      "type": "boolean",
+      "default": false
+    },
+    "conflict_report_path": {
+      "description": "Absolute path to the conflict report markdown (workspace/sil/conflicts/<revelation-version>.md). Present only when conflict_surfaced = true.",
+      "type": "string"
+    },
+    "telegram_message_id": {
+      "description": "Telegram message ID of the offer (for follow-up edit semantics, e.g., editing the offer message to show 'accepted' after the Prophit taps). Optional.",
+      "type": "integer"
+    },
+    "notes": {
+      "description": "Free-form operator notes for debugging.",
+      "type": "string"
+    }
+  }
+}

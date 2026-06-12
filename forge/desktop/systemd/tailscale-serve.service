@@ -1,0 +1,27 @@
+[Unit]
+Description=Gawd Tailscale Serve TLS frontend for noVNC
+# Spec §8.1: Tailscale Serve fronts noVNC via HTTPS at the tailnet hostname
+# NOTE: This unit is SUPPLEMENTARY — Tailscale Serve state is persisted by
+# the tailscaled daemon itself (via `tailscale serve --bg`). This unit is
+# a one-shot idempotent re-apply of the Serve config on boot, in case
+# tailscaled was restarted and the serve config needs to be re-asserted.
+# In practice, tailscaled on modern versions persists serve config; this
+# unit provides belt-and-suspenders assurance on VPS reboot.
+After=network-online.target tailscaled.service gawd-novnc.service
+Requires=tailscaled.service
+Wants=gawd-novnc.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+# GAWD_USER: replaced by install-desktop.sh for the target user
+User=gawd
+Group=gawd
+Environment=HOME=/home/gawd
+# Re-apply Tailscale Serve config (idempotent — safe if already set)
+# The actual configuration is set by configure-tailscale-serve.sh at install time.
+# On reboot this re-asserts it; tailscaled will accept it if already set.
+ExecStart=/usr/bin/tailscale serve --bg http://127.0.0.1:6080
+
+[Install]
+WantedBy=multi-user.target

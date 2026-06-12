@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+{% block title %}The Meeting — Gawd{% endblock %}
+{% block content %}
+{# Per §5.3: not skippable. We render all movements but reveal sequentially via JS.
+   No close button. Continue-button only progresses after the current movement has
+   been on-screen for a minimum time. #}
+<div id="meeting-root" class="max-w-2xl mx-auto pt-2 pb-12">
+  <div class="text-center mb-6">
+    <p class="text-xs text-zinc-500 uppercase tracking-wide">The Meeting · {{ today_iso }}</p>
+  </div>
+
+  <div id="meeting-stage" class="space-y-8">
+    {% for m in movements %}
+    <article id="movement-{{ loop.index }}"
+             class="gawd-movement bg-zinc-900 border border-zinc-800 rounded p-6 space-y-4 {% if not loop.first %}hidden{% endif %}">
+      <h2 class="text-xs text-zinc-500 uppercase tracking-wide">{{ m.title }}</h2>
+      <div class="text-zinc-100 whitespace-pre-wrap">{{ m.body }}</div>
+
+      {% if loop.index == 3 %}
+        {# Movement 3: First Ask — record response. #}
+        <form hx-post="{{ url_for('meeting.respond', movement=3) }}"
+              hx-trigger="submit"
+              hx-target="#movement-3-status"
+              hx-swap="innerHTML"
+              class="space-y-2 pt-2">
+          <label for="response-3" class="block text-xs text-zinc-400">your answer</label>
+          <textarea id="response-3" name="response" rows="3" required
+                    class="w-full bg-zinc-950 border border-zinc-700 rounded px-3 py-2 text-zinc-100 focus:outline-none focus:border-zinc-500"></textarea>
+          <div class="flex items-center gap-3">
+            <button type="submit" class="bg-emerald-700 hover:bg-emerald-600 text-white text-sm rounded px-3 py-1.5 transition">submit</button>
+            <span id="movement-3-status" class="text-xs text-zinc-400"></span>
+          </div>
+        </form>
+      {% endif %}
+
+      {% if loop.index == 5 %}
+        {# Movement 5: Invitation — record final response and mark complete. #}
+        <form hx-post="{{ url_for('meeting.respond', movement=5) }}"
+              hx-trigger="submit"
+              hx-target="#movement-5-status"
+              hx-swap="innerHTML"
+              class="space-y-2 pt-2">
+          <label for="response-5" class="block text-xs text-zinc-400">answer the outstanding request from Movement 3 (or speak freely)</label>
+          <textarea id="response-5" name="response" rows="4" required
+                    class="w-full bg-zinc-950 border border-zinc-700 rounded px-3 py-2 text-zinc-100 focus:outline-none focus:border-zinc-500"></textarea>
+          <div class="flex items-center gap-3">
+            <button type="submit" class="bg-emerald-700 hover:bg-emerald-600 text-white text-sm rounded px-3 py-1.5 transition">submit</button>
+            <span id="movement-5-status" class="text-xs text-zinc-400"></span>
+          </div>
+        </form>
+      {% endif %}
+    </article>
+    {% endfor %}
+  </div>
+
+  <div class="mt-8 flex justify-center">
+    <button id="next-movement" disabled
+            class="bg-emerald-800 disabled:opacity-40 disabled:cursor-not-allowed enabled:hover:bg-emerald-700 text-white font-medium rounded px-5 py-2 transition">
+      continue
+    </button>
+  </div>
+
+  <p class="text-center text-xs text-zinc-500 mt-4">This is not skippable. Read each movement.</p>
+</div>
+
+<script>
+(function() {
+  const articles = document.querySelectorAll('#meeting-stage article');
+  const total = articles.length;
+  const nextBtn = document.getElementById('next-movement');
+  let current = 0;
+  const MIN_DWELL_MS = 4000;
+  let dwellTimer;
+
+  function arm() {
+    nextBtn.disabled = true;
+    clearTimeout(dwellTimer);
+    dwellTimer = setTimeout(function() { nextBtn.disabled = false; }, MIN_DWELL_MS);
+  }
+
+  function advance() {
+    if (current >= total - 1) {
+      // Final movement — mark complete and redirect.
+      // dash-HIGH H1: this is a raw fetch (not HTMX), so it does not inherit the
+      // body-level hx-headers CSRF token — send it explicitly from the meta tag.
+      fetch('{{ url_for("meeting.complete") }}', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').getAttribute('content') },
+      })
+        .then(function(r) { return r.json(); })
+        .then(function(j) {
+          if (j && j.next) { window.location.href = j.next; }
+          else { window.location.href = '/'; }
+        })
+        .catch(function() { window.location.href = '/'; });
+      return;
+    }
+    current += 1;
+    articles[current].classList.remove('hidden');
+    articles[current].scrollIntoView({ behavior: 'smooth', block: 'start' });
+    arm();
+    if (current === total - 1) {
+      nextBtn.textContent = 'complete the meeting';
+    }
+  }
+
+  nextBtn.addEventListener('click', advance);
+  arm();
+
+  // Prevent navigating away mid-meeting (best-effort).
+  window.addEventListener('beforeunload', function(e) {
+    if (current < total - 1) {
+      e.preventDefault();
+      e.returnValue = '';
+    }
+  });
+})();
+</script>
+{% endblock %}

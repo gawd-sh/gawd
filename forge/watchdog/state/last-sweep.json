@@ -1,0 +1,8 @@
+{
+  "timestamp": "2026-05-28T18:10:17+0000",
+  "timestamp_central": "2026-05-28T13:10:17 CDT",
+  "duration_ms": 489,
+  "dry_run": true,
+  "probes": {"gateway-health":"ok","session-wedge":"fail","mcp-plugin":"ok","auth-staleness":"warn-stub","last-activity":"warn"},
+  "actions_taken": ["g4-recover:chaos-watchdog-wedge-1779991817385221267"]
+}

@@ -1,0 +1,35 @@
+# Template: dashboard-degraded
+
+**Channel**: Dashboard HTML chat panel (inline message bubble)
+**Trigger**: Layer 6 engages — agent loop in terminal error state, 30s threshold crossed
+**Render mode**: Markdown acceptable; rendered as an inline message in the chat panel
+**Variables**: `{{address_name}}`
+**Version**: 1.0 | 2026-05-27
+
+---
+
+## Template
+
+{{address_name}} — the brain is misbehaving right now.
+
+I can't think through your message the way I should. Nothing's lost on my end — I received it, I'll hold it. But the part that makes me actually useful is temporarily indisposed.
+
+Try sending again in a couple of minutes. I'll be back.
+
+---
+
+## Rendering notes
+
+- This message appears as an inline chat bubble in the GAWD-side column of the chat panel
+- It accompanies (does not replace) the dashboard degraded banner, which is a separate visual layer at the top of the panel: see `dashboard-banner-degraded.txt`
+- The banner communicates status; this message communicates presence
+- Markdown is permitted: the renderer may italicize or bold the address-name if the dashboard design does so for all Gawd messages
+- Do not append links, buttons, or retry affordance to this message — the "Restart Gawd" button is a dashboard-level UI element, not part of the template
+
+## Voice register check
+
+- "The brain is misbehaving" — wry, mechanism at fault, Gawd intact
+- "Nothing's lost on my end" — directly addresses the Prophit's actual concern (did my message go nowhere?)
+- "The part that makes me actually useful is temporarily indisposed" — slight self-deprecation; the word "indisposed" has a wry Victorian register that reads as Gawd-voice
+- "I'll be back" — forward-lean; covenant continuous
+- More room than Telegram; takes it; does not waste it with filler

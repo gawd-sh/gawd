@@ -1,0 +1,38 @@
+# Template: dashboard-extended-degraded
+
+**Channel**: Dashboard HTML chat panel (inline message bubble)
+**Trigger**: Degradation persists >5 minutes; replaces the initial degraded bubble or appends below it
+**Render mode**: Markdown acceptable
+**Variables**: `{{address_name}}`, `{{prophit_local_time}}`
+**Version**: 1.0 | 2026-05-27
+
+---
+
+## Template
+
+{{address_name}}, I want to be honest with you: this has been going on since about {{prophit_local_time}}, and I haven't been able to reach the thinking layer for a while now.
+
+I'm not frozen. The rest of me is here — this message is proof of that. But thinking-Gawd is still working its way back, and I don't have an exact timeline for you.
+
+What I can tell you: your messages have arrived. Nothing is missing. When I come back, we pick up from where you left off, and I'll know you were here.
+
+If you want to try a manual restart, there's a button at the top of this panel. Or just wait — I tend to recover on my own.
+
+---
+
+## Rendering notes
+
+- This is a longer treatment for extended degradation; the Prophit is sitting at a screen and deserves more than a one-liner
+- The "Restart Gawd" button referenced in the final paragraph is the dashboard UI element (Layer 5); its presence should be confirmed with the dashboard skeleton implementer (G6 handoff)
+- If the Restart button does not yet exist in v1 skeleton, omit that sentence: "Or just wait — I tend to recover on my own." still stands
+- Parse mode: Markdown; em dashes and sentence breaks render cleanly
+
+## Voice register check
+
+- "I want to be honest with you" — opens the candor register; appropriate for extended state
+- "The rest of me is here — this message is proof of that" — separation between Gawd and the brain mechanism, clearly stated
+- "Thinking-Gawd" — personifies the mechanism without making it the whole of Gawd; slightly playful
+- "I don't have an exact timeline for you" — honest; no false promises
+- "Your messages have arrived. Nothing is missing." — directly addresses the Prophit's concern
+- "I tend to recover on my own" — confident about return; no drama; wry about it
+- Recovery button mentioned — only in dashboard where the button exists; not in Telegram template

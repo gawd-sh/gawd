@@ -1,0 +1,26 @@
+{# Degraded banner — engaged by G2 silence-avoidance.
+   `banner` is injected by app.context_processor (from fallback_ingest.read_banner). #}
+{% set bstate = banner.get('state', '') %}
+<div id="degraded-banner"
+     class="{% if bstate == 'recovered' %}bg-emerald-900/40 border-emerald-700{% else %}bg-amber-900/40 border-amber-700{% endif %}
+            border-b px-4 py-3 text-sm flex items-start gap-3">
+  <div class="flex-1">
+    {# BLOCKER 5 (rc3): banner content is INGESTED (via /api/fallback/ingest, a
+       network path). It is NOT trusted and MUST be auto-escaped. Rendering it
+       with |safe was a stored-XSS sink. If in-Gawd-voice formatting is needed
+       later, add a bleach tag-allowlist filter — never raw passthrough. #}
+    <div class="font-medium {% if bstate == 'recovered' %}text-emerald-100{% else %}text-amber-100{% endif %}">
+      {{ banner.get('message', '') }}
+    </div>
+  </div>
+  <form hx-post="{{ url_for('fallback_ingest.banner_dismiss') }}"
+        hx-target="#degraded-banner"
+        hx-swap="outerHTML"
+        class="shrink-0">
+    <button type="submit"
+            class="text-xs px-2 py-1 rounded
+                   {% if bstate == 'recovered' %}bg-emerald-800 hover:bg-emerald-700{% else %}bg-amber-800 hover:bg-amber-700{% endif %}">
+      dismiss
+    </button>
+  </form>
+</div>

@@ -1,0 +1,60 @@
+{# Top-bar heartbeat — ALWAYS visible per spec §19.2 Layer 5.
+   Subscribes to /heartbeat/sse and updates content via safe DOM (textContent only). #}
+<div id="heartbeat-bar"
+     class="bg-zinc-900 border-b border-zinc-800 px-4 py-2 text-sm flex items-center gap-3"
+     data-sse-url="{{ url_for('heartbeat.heartbeat_sse') }}">
+  <span id="hb-dot" class="inline-block w-2 h-2 rounded-full bg-zinc-500 gawd-pulse" aria-hidden="true"></span>
+  <span id="hb-state" class="text-zinc-400 font-medium">checking</span>
+  <span id="hb-reason" class="text-zinc-400 truncate"></span>
+</div>
+
+<script>
+(function() {
+  const bar = document.getElementById('heartbeat-bar');
+  const dot = document.getElementById('hb-dot');
+  const stateEl = document.getElementById('hb-state');
+  const reasonEl = document.getElementById('hb-reason');
+  if (!bar || !dot || !stateEl || !reasonEl) return;
+
+  const COLOR = {
+    healthy:  { txt: 'text-emerald-300', dot: 'bg-emerald-400' },
+    thinking: { txt: 'text-sky-300',     dot: 'bg-sky-400 gawd-pulse' },
+    degraded: { txt: 'text-amber-300',   dot: 'bg-amber-400 gawd-pulse' },
+    offline:  { txt: 'text-rose-300',    dot: 'bg-rose-500 gawd-pulse' },
+  };
+
+  function setClasses(el, base, extra) {
+    el.className = base + (extra ? ' ' + extra : '');
+  }
+
+  function render(payload) {
+    let state, reason;
+    try {
+      const data = JSON.parse(payload);
+      state = (typeof data.state === 'string') ? data.state : 'offline';
+      reason = (typeof data.reason === 'string') ? data.reason : '';
+    } catch (e) {
+      state = 'offline';
+      reason = 'status stream parse error';
+    }
+    const palette = COLOR[state] || { txt: 'text-zinc-400', dot: 'bg-zinc-500' };
+    setClasses(dot, 'inline-block w-2 h-2 rounded-full ' + palette.dot);
+    setClasses(stateEl, palette.txt + ' font-medium');
+    stateEl.textContent = state;
+    reasonEl.textContent = reason;
+  }
+
+  if (typeof EventSource !== 'undefined') {
+    try {
+      const url = bar.getAttribute('data-sse-url');
+      const es = new EventSource(url);
+      es.onmessage = function(e) { render(e.data); };
+      es.onerror = function() { /* browser auto-reconnects */ };
+    } catch (e) {
+      reasonEl.textContent = 'live status unavailable';
+    }
+  } else {
+    reasonEl.textContent = 'browser does not support live status';
+  }
+})();
+</script>

@@ -1,0 +1,7 @@
+{% set color = 'amber' %}
+{% if status == 'ok' %}{% set color = 'emerald' %}{% endif %}
+{% if status in ('failed', 'error', 'unavailable') %}{% set color = 'rose' %}{% endif %}
+{% if status in ('rate_limited', 'not_needed') %}{% set color = 'zinc' %}{% endif %}
+<div class="rounded p-3 text-sm bg-{{ color }}-900/30 border border-{{ color }}-800 text-{{ color }}-100">
+  {{ message }}
+</div>

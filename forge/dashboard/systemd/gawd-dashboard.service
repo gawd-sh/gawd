@@ -1,0 +1,51 @@
+[Unit]
+# Per spec §19.3.2 INFRASTRUCTURE SEPARATION: this unit MUST NOT depend on the
+# OpenClaw gateway or any other Gawd service. If the gateway is down, the
+# dashboard stays up to show the truth.
+Description=Gawd Dashboard (Prophit-facing visual surface)
+After=network-online.target
+Wants=network-online.target
+# StartLimitIntervalSec belongs in [Unit], not [Service]
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+WorkingDirectory=%h/.gawd/dashboard
+EnvironmentFile=-%h/.gawd/dashboard/dashboard.env
+# Defaults — overridden by dashboard.env if present
+# GAWD_DASHBOARD_BIND_HOST must be set explicitly; systemd does not support
+# bash ${VAR:-default} substitution syntax in ExecStart.
+Environment=GAWD_DASHBOARD_PORT=8090
+Environment=GAWD_DASHBOARD_BIND_HOST=127.0.0.1
+Environment=GAWD_DASHBOARD_EXPOSURE=local
+Environment=GAWD_GATEWAY_URL=http://127.0.0.1:18789
+Environment=GAWD_LOG_LEVEL=INFO
+
+# Run via gunicorn for production resilience. w=1 because heartbeat SSE keeps
+# long-lived connections; threads handle concurrent clients.
+ExecStart=%h/.local/share/gawd-dashboard/venv/bin/gunicorn \
+    --workers 1 \
+    --worker-class gthread \
+    --threads 16 \
+    --bind ${GAWD_DASHBOARD_BIND_HOST}:${GAWD_DASHBOARD_PORT} \
+    --access-logfile - \
+    --error-logfile - \
+    server.app:create_app()
+
+Restart=always
+RestartSec=5
+
+# Filesystem hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+# But the dashboard MUST write to ~/.gawd
+ReadWritePaths=%h/.gawd
+
+# Resource limits (microVM-friendly)
+MemoryMax=512M
+TasksMax=64
+
+[Install]
+WantedBy=default.target

@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+# gawd-onboard — Gawd onboarding entry point
+#
+# This script is installed at /usr/local/bin/gawd-onboard by the Forge's install
+# pipeline. install.sh step 7 calls this binary directly (exec "$ONBOARD_BIN").
+#
+# It sets GAWD_WORKSPACE (if not already set) and hands off to wizard.sh.
+# This thin wrapper exists so wizard.sh can be tested and updated independently
+# of the installed binary path.
+#
+# Per spec §4.2 step 7 and handoff A4.
+
+set -euo pipefail
+
+# GAWD_WORKSPACE must exist before the wizard runs.
+export GAWD_WORKSPACE="${GAWD_WORKSPACE:-${HOME}/.gawd}"
+
+if [[ ! -d "$GAWD_WORKSPACE" ]]; then
+    printf '[gawd-onboard] GAWD_WORKSPACE does not exist: %s\n' "$GAWD_WORKSPACE" >&2
+    printf '[gawd-onboard] Run install.sh first.\n' >&2
+    exit 1
+fi
+
+# Locate wizard.sh alongside this script or in the daemon install dir.
+SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+WIZARD="${SELF_DIR}/wizard.sh"
+
+# Fallback: wizard shipped to /opt/gawd/onboarding/wizard.sh on bare-metal rung.
+if [[ ! -x "$WIZARD" ]]; then
+    WIZARD="/opt/gawd/onboarding/wizard.sh"
+fi
+
+if [[ ! -x "$WIZARD" ]]; then
+    printf '[gawd-onboard] wizard.sh not found. Expected at %s\n' "$WIZARD" >&2
+    printf '[gawd-onboard] Reinstall the Gawd daemon.\n' >&2
+    exit 1
+fi
+
+exec "$WIZARD"

@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block title %}Gawd{% endblock %}
+{% block content %}
+<div class="flex flex-col h-[calc(100vh-8rem)]">
+
+  <div class="flex items-center justify-between pb-3 border-b border-zinc-800 mb-3">
+    <div class="text-sm text-zinc-400">conversation</div>
+    <div class="flex items-center gap-2">
+      {% if has_novnc %}
+        <a href="{{ novnc_url }}" target="_blank" rel="noopener"
+           class="text-xs bg-zinc-800 hover:bg-zinc-700 px-3 py-1.5 rounded">
+          open desktop
+        </a>
+      {% endif %}
+      <a href="{{ url_for('tithe.tithe_modal') }}"
+         class="text-xs bg-amber-700 hover:bg-amber-600 px-3 py-1.5 rounded">
+          tip your Gawd
+      </a>
+      <button hx-post="{{ url_for('recovery.restart_gawd') }}"
+              hx-target="#recovery-result"
+              hx-swap="innerHTML"
+              class="text-xs bg-rose-800 hover:bg-rose-700 px-3 py-1.5 rounded">
+        restart gawd
+      </button>
+      <a href="{{ url_for('settings.settings_page') }}"
+         class="text-xs bg-zinc-800 hover:bg-zinc-700 px-3 py-1.5 rounded">
+        settings
+      </a>
+    </div>
+  </div>
+
+  <div id="recovery-result" class="mb-2"></div>
+
+  <div id="messages" class="flex-1 overflow-y-auto space-y-3 pr-1">
+    {% for record in history %}
+      {% include "_chat_message.html" with context %}
+    {% endfor %}
+  </div>
+
+  <form id="composer"
+        hx-post="{{ url_for('chat.chat_send') }}"
+        hx-target="#messages"
+        hx-swap="beforeend"
+        hx-on::after-request="this.reset(); document.getElementById('messages').scrollTop = document.getElementById('messages').scrollHeight;"
+        class="mt-3 flex gap-2 border-t border-zinc-800 pt-3">
+    <input type="text" name="message" required
+           autocomplete="off"
+           class="flex-1 bg-zinc-950 border border-zinc-700 rounded px-3 py-2 text-zinc-100 focus:outline-none focus:border-zinc-500"
+           placeholder="speak…">
+    <button type="submit"
+            class="bg-emerald-700 hover:bg-emerald-600 text-white font-medium rounded px-4 py-2 transition">
+      send
+    </button>
+  </form>
+</div>
+
+{# SSE inbound stream: G2 fallbacks + gateway inbound mirror appear here.
+   We use textContent for the body (no HTML injection) — punt links and
+   recovery banners use safe DOM constructors below. #}
+<script>
+(function() {
+  const messages = document.getElementById('messages');
+  if (!messages || typeof EventSource === 'undefined') return;
+
+  function appendMessage(role, text) {
+    const wrap = document.createElement('div');
+    wrap.className =
+      'rounded p-3 ' +
+      (role === 'fallback' ? 'bg-amber-900/30 border border-amber-800' :
+       role === 'system'   ? 'bg-zinc-800 border border-zinc-700' :
+                             'bg-zinc-900 border border-zinc-800');
+    const label = document.createElement('div');
+    label.className = 'text-xs uppercase tracking-wide text-zinc-500 mb-1';
+    label.textContent = role;
+    wrap.appendChild(label);
+    const body = document.createElement('div');
+    body.className = 'whitespace-pre-wrap';
+    body.textContent = text;
+    wrap.appendChild(body);
+    messages.appendChild(wrap);
+    messages.scrollTop = messages.scrollHeight;
+  }
+
+  try {
+    const es = new EventSource('{{ url_for("chat.chat_stream") }}');
+    es.onmessage = function(e) {
+      try {
+        const evt = JSON.parse(e.data);
+        const text = evt.text || evt.html || '';  // prefer text; html field is plain text from G2
+        if (!text) return;
+        appendMessage(evt.role || 'gawd', text);
+      } catch (err) { /* ignore parse errors */ }
+    };
+    es.onerror = function() { /* browser auto-reconnects */ };
+  } catch (e) { /* fallthrough */ }
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,49 @@
+{
+  "name": "chronicler",
+  "purpose": "Reconstruct a timeline or recall what happened — sequences events from source material, acknowledges gaps honestly",
+  "default_tier": "blessed",
+  "timeout_sec": 60,
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "task_description": {
+        "type": "string",
+        "description": "What timeline to reconstruct: subject, scope, and what question it should answer",
+        "maxLength": 4000
+      },
+      "injected_context": {
+        "type": "string",
+        "description": "Source material: logs, notes, messages, records containing the events",
+        "maxLength": 8000
+      }
+    },
+    "required": ["task_description"]
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "status": {
+        "type": "string",
+        "enum": ["complete", "failed"]
+      },
+      "output": {
+        "type": "string",
+        "description": "Timeline narrative: chronologically ordered events with gaps acknowledged"
+      },
+      "error": {
+        "type": ["string", "null"]
+      }
+    },
+    "required": ["status", "output", "error"]
+  },
+  "smoke_test": {
+    "input": {
+      "task_description": "Reconstruct the sequence of events from the deployment log",
+      "injected_context": "09:00 deploy started. 09:05 health check passed. 09:10 error rate spiked. 09:15 rollback initiated. 09:22 rollback complete."
+    },
+    "expected_output_shape": {
+      "status": "complete",
+      "output_contains_keywords": ["deploy", "health", "error", "rollback"]
+    }
+  }
+}

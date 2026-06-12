@@ -1,0 +1,106 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://gawd.sh/schemas/migration/manifest-schema.json",
+  "title": "Gawd Migration Bundle Manifest",
+  "description": "Manifest schema for the top-level manifest.json file inside a gawd-export bundle. Produced by gawd-export; validated by validate-bundle before atomic-rename. See spec <install-root>/docs/superpowers/specs/2026-05-26-gawd-architecture-design.md §7.2 and handoff F1.",
+  "type": "object",
+  "required": [
+    "bundle_format_version",
+    "gawd_id",
+    "source_rung",
+    "exported_at",
+    "exported_by",
+    "bundle_size_bytes_uncompressed",
+    "file_inventory"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "bundle_format_version": {
+      "type": "string",
+      "description": "Semver of the bundle layout. Bumped when the directory contract changes.",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+    },
+    "gawd_id": {
+      "type": "string",
+      "description": "The Gawd's instance identifier (from IDENTITY.md Name + Born). Used as a sanity check at import; mismatch is informational, not fatal (a Prophit may rename).",
+      "minLength": 1,
+      "maxLength": 256
+    },
+    "source_rung": {
+      "type": "string",
+      "description": "Which rung of the sovereignty ladder the export originated from.",
+      "enum": ["hosted", "prophit-vm", "bare-metal"]
+    },
+    "destination_rung_hint": {
+      "type": "string",
+      "description": "Optional hint about the destination rung. Informational; import does not enforce against this.",
+      "enum": ["hosted", "prophit-vm", "bare-metal"]
+    },
+    "exported_at": {
+      "type": "string",
+      "description": "ISO-8601 UTC timestamp of when the bundle was produced.",
+      "format": "date-time"
+    },
+    "exported_by": {
+      "type": "string",
+      "description": "Tool identifier + version, e.g., 'gawd-export@1.0.0'.",
+      "minLength": 1
+    },
+    "exporter_hostname": {
+      "type": "string",
+      "description": "Hostname of the source substrate. Diagnostic only."
+    },
+    "bundle_size_bytes_uncompressed": {
+      "type": "integer",
+      "description": "Total uncompressed size of all bundle contents in bytes. Sanity check at import.",
+      "minimum": 0
+    },
+    "embeddings_present": {
+      "type": "boolean",
+      "description": "Whether memory.lancedb.tar is included in the bundle. False means the Gawd is newly born or memory was intentionally not exported.",
+      "default": true
+    },
+    "embedding_index_count": {
+      "type": "integer",
+      "description": "Number of vectors indexed at export time. Validated against the staged index at import; deviation > 0 with present index fails validation.",
+      "minimum": 0
+    },
+    "prophit_count": {
+      "type": "integer",
+      "description": "Number of Prophit profiles in the bundle (1 = single-Prophit; 2+ = multi-Prophit / household).",
+      "minimum": 1,
+      "maximum": 8
+    },
+    "file_inventory": {
+      "type": "array",
+      "description": "Authoritative list of every file inside the bundle (relative to bundle root), with size + sha256. Validated at import: any missing/extra/mismatched file fails the bundle.",
+      "items": {
+        "type": "object",
+        "required": ["path", "size_bytes", "sha256"],
+        "additionalProperties": false,
+        "properties": {
+          "path": {
+            "type": "string",
+            "description": "Path relative to the bundle root (e.g., 'soul/SOUL.md').",
+            "minLength": 1
+          },
+          "size_bytes": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "sha256": {
+            "type": "string",
+            "description": "Hex-encoded SHA-256 of the file content.",
+            "pattern": "^[0-9a-f]{64}$"
+          }
+        }
+      },
+      "minItems": 1
+    },
+    "notes": {
+      "type": "string",
+      "description": "Free-form human-readable notes captured by gawd-export (e.g., 'soul deltas only', 'fresh from forge'). Informational.",
+      "maxLength": 2048
+    }
+  }
+}

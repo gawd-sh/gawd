@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Log in — Gawd{% endblock %}
+{% block content %}
+<div class="max-w-md mx-auto pt-8 space-y-6">
+  <div class="text-center">
+    <img src="{{ url_for('static', filename='ct-ardenite.svg') }}" alt="Gawd" class="mx-auto w-16 h-16 opacity-70 mb-3">
+    <h1 class="text-2xl font-semibold">Gawd</h1>
+    <p class="text-sm text-zinc-400 mt-1">log in via Telegram</p>
+  </div>
+
+  {% if sent %}
+    <div class="bg-zinc-900 border border-zinc-800 rounded p-5">
+      <p class="text-zinc-100">If your Telegram account is bound to this Gawd, you should see a DM with a one-time login link within a few seconds.</p>
+      <p class="text-zinc-400 text-xs mt-3">The link expires in 10 minutes and is single-use.</p>
+      <p class="text-zinc-400 text-xs mt-2"><a href="{{ url_for('auth.login_page') }}" class="underline hover:text-zinc-200">try again with a different chat_id</a></p>
+    </div>
+  {% else %}
+    <form method="post" action="{{ url_for('auth.login_send') }}" class="bg-zinc-900 border border-zinc-800 rounded p-5 space-y-4">
+      <div>
+        <label for="chat_id" class="block text-sm text-zinc-300 mb-1">Your Telegram chat_id</label>
+        <input type="text" name="chat_id" id="chat_id" required
+               class="w-full bg-zinc-950 border border-zinc-700 rounded px-3 py-2 text-zinc-100 focus:outline-none focus:border-zinc-500"
+               placeholder="e.g., 123456789">
+        <p class="text-xs text-zinc-500 mt-1">Find yours by DMing <code class="text-zinc-300">@userinfobot</code> on Telegram.</p>
+      </div>
+      {% if error %}
+        <p class="text-rose-400 text-sm">{{ error }}</p>
+      {% endif %}
+      <button type="submit"
+              class="w-full bg-emerald-700 hover:bg-emerald-600 text-white font-medium rounded py-2 transition">
+        send me a login link
+      </button>
+    </form>
+  {% endif %}
+</div>
+{% endblock %}
