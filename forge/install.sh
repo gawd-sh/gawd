@@ -313,7 +313,7 @@ case "$CMD" in
       IFS= read -rs VALUE || true
       printf '\n' >&2
     fi
-    (umask 0177; mkdir -p "$VAULT_DIR")
+    (umask 0077; mkdir -p "$VAULT_DIR"); chmod 700 "$VAULT_DIR"  # dir needs x-bit; 0177 umask would make it 600 (heals old broken vaults too)
     # Derive the recipient public key from the age key file.
     PUBKEY="$(grep '^# public key:' "$AGE_KEY" | awk '{print $NF}')"
     [[ -n "$PUBKEY" ]] || { printf 'secrets: could not read public key from %s\n' "$AGE_KEY" >&2; exit 2; }
