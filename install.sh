@@ -2345,12 +2345,9 @@ if [[ "${SKIP_WIZARD:-0}" == "1" ]]; then
 fi
 
 if [[ ! -x "$ONBOARD_BIN" ]]; then
-  # Wizard binary not present on this substrate — this is expected on a
-  # non-standard substrate or during the A3 testing phase before A4 lands.
-  warn "  Onboarding wizard binary not found at ${ONBOARD_BIN}."
-  warn "  This is normal if the daemon image has not been fully built yet."
-  warn "  When ready, run: ${ONBOARD_BIN}"
-  # Exit 0: installation itself succeeded; wizard absence is not an install error.
+  # Guided wizard not present in this release (see STATUS.md roadmap) — the
+  # printed instructions above are the v1 onboarding path. Silent skip:
+  # installation itself succeeded; wizard absence is not an install error.
   exit 0
 fi
 
