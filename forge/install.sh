@@ -420,6 +420,16 @@ SECRETS_HELPER_EOF
 install_secrets_helper
 chmod 0755 "$SECRETS_HELPER"
 ok "  Installed ${SECRETS_HELPER} (chmod 0755)"
+# PATH-safety: on root installs (the normal fresh-VPS path) also place the helper
+# in /usr/local/bin so `secrets` resolves in the CURRENT shell with no re-login.
+# (~/.local/bin only enters PATH at the NEXT login if it didn't exist at this one.)
+if [[ -w /usr/local/bin ]]; then
+  cp -f "$SECRETS_HELPER" /usr/local/bin/secrets
+  ok "  Installed /usr/local/bin/secrets (PATH-safe copy)"
+elif ! command -v secrets >/dev/null 2>&1; then
+  warn "  'secrets' is not on your PATH in this shell yet. Run this first:"
+  warn "      export PATH=\"\$HOME/.local/bin:\$PATH\""
+fi
 
 # ── step 4.5: capture GAWD_ADMIN_CHAT_ID (gateway-disconnect alerting) ─────────
 #
