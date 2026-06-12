@@ -2239,6 +2239,15 @@ printf '\033[1;32m[gawd]\033[0m  Installation complete.\n'
 printf '\033[1;32m[gawd]\033[0m ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n'
 printf '\n'
 printf '  The secrets helper is now at ~/.local/bin/secrets.\n'
+# On the docker rung this script runs IN-CONTAINER (docker exec ... --non-interactive)
+# to provision config from the injected env vars. The host-oriented next-steps below
+# (set TELEGRAM_BOT_TOKEN, edit openclaw.json, start the daemon) are already handled —
+# the token came via -e, config is written above, the entrypoint runs the daemon.
+# Print one confirmation line and exit cleanly instead of re-prompting.
+if [[ "$RUNG" == "docker" ]]; then
+  ok "  Daemon provisioned from the environment. Restart the container to load it."
+  exit 0
+fi
 printf '\n'
 printf '  ── Required: Telegram bot token ────────────────────────────────────\n'
 printf '\n'
