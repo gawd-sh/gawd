@@ -498,16 +498,26 @@ elif [[ "$SKIP_ADMIN_CHAT" -eq 2 ]]; then
   # Validate format: same regex as the interactive path (MED-3 fix, phase4-20260609).
   # Prevents a newline-injected value from polluting the EnvironmentFile= that the
   # watchdog systemd unit reads (a GAWD_ADMIN_CHAT_ID line break → extra env assignment).
+  #
+  # rc18 FIX: GAWD_ADMIN_CHAT_ID is OPTIONAL. If the value is a placeholder or
+  # otherwise non-numeric (e.g. the landing-page example "YOUR_TELEGRAM_ID"), we
+  # WARN and skip — never exit 1. The critical config (tools.loopDetection,
+  # channels.telegram, etc.) is written by step 5 regardless. allowFrom will be
+  # empty; the TOFU gateway patch claims the first DM as owner automatically.
   if [[ ! "${GAWD_ADMIN_CHAT_ID}" =~ ^-?[0-9]+$ ]]; then
-    fail "GAWD_ADMIN_CHAT_ID env var is not a valid Telegram chat ID (expected optional-minus then digits, got: '${GAWD_ADMIN_CHAT_ID}'). Fix the docker run -e value." 1
-  fi
-  ok "  GAWD_ADMIN_CHAT_ID provided via environment — storing in vault."
-  ADMIN_CHAT_ID_VALUE="${GAWD_ADMIN_CHAT_ID}"
-  # Store in vault (idempotent — overwrite is intentional for env-injected values).
-  if command -v "$SECRETS_HELPER" &>/dev/null || [[ -x "$SECRETS_HELPER" ]]; then
-    printf '%s' "$ADMIN_CHAT_ID_VALUE" | "$SECRETS_HELPER" set GAWD_ADMIN_CHAT_ID 2>/dev/null \
-      && ok "  Stored GAWD_ADMIN_CHAT_ID in vault." \
-      || warn "  Could not store GAWD_ADMIN_CHAT_ID in vault (no age key yet — run 'secrets set GAWD_ADMIN_CHAT_ID' after first real boot)."
+    warn "  GAWD_ADMIN_CHAT_ID='${GAWD_ADMIN_CHAT_ID}' is not a valid Telegram chat ID (expected digits, like 123456789)."
+    warn "  Skipping admin-id pre-population. TOFU: just DM your bot — the first message claims ownership."
+    warn "  To pre-set later: re-run with GAWD_ADMIN_CHAT_ID=<your-numeric-chat-id>"
+    SKIP_ADMIN_CHAT=1  # treat as "not set" from here — skip vault store, allowFrom stays empty
+  else
+    ok "  GAWD_ADMIN_CHAT_ID provided via environment — storing in vault."
+    ADMIN_CHAT_ID_VALUE="${GAWD_ADMIN_CHAT_ID}"
+    # Store in vault (idempotent — overwrite is intentional for env-injected values).
+    if command -v "$SECRETS_HELPER" &>/dev/null || [[ -x "$SECRETS_HELPER" ]]; then
+      printf '%s' "$ADMIN_CHAT_ID_VALUE" | "$SECRETS_HELPER" set GAWD_ADMIN_CHAT_ID 2>/dev/null \
+        && ok "  Stored GAWD_ADMIN_CHAT_ID in vault." \
+        || warn "  Could not store GAWD_ADMIN_CHAT_ID in vault (no age key yet — run 'secrets set GAWD_ADMIN_CHAT_ID' after first real boot)."
+    fi
   fi
 elif [[ "$SKIP_ADMIN_CHAT" -eq 3 ]]; then
   # Already set in vault on a previous install — nothing to do.
@@ -1280,11 +1290,12 @@ config = {
                 "enabled": True,
                 "dmPolicy": "allowlist",
                 "botToken": "${TELEGRAM_BOT_TOKEN}",
+                # rc18: validate GAWD_ADMIN_CHAT_ID before using it — must be numeric
+                # (optional leading minus then digits). If the value is a placeholder
+                # like "YOUR_TELEGRAM_ID", leave allowFrom empty so TOFU fires.
                 "allowFrom": (
-                    [os.environ.get("GAWD_ADMIN_CHAT_ID")]
-                    if os.environ.get("GAWD_ADMIN_CHAT_ID", "")
-                    else []
-                ),
+                    lambda _id: [_id] if _id and __import__('re').match(r'^-?[0-9]+$', _id) else []
+                )(os.environ.get("GAWD_ADMIN_CHAT_ID", "").strip()),
                 "streaming": {
                     "mode": "progress"
                 }
@@ -1546,8 +1557,11 @@ with open(cfg_path) as f:
 # on a fresh install without manual config editing.  Chat ID is NOT a secret
 # (it is a numeric identifier, not an API token) — safe to store in config.
 # os.environ.get() used (not bash expansion) to avoid injection risk.
+# rc18: validate the value — must be numeric (optional minus + digits only).
+# A placeholder like "YOUR_TELEGRAM_ID" is silently skipped; TOFU claims it.
+import re as _re
 admin_chat_id = os.environ.get('GAWD_ADMIN_CHAT_ID', '').strip()
-allow_from = [admin_chat_id] if admin_chat_id else []
+allow_from = [admin_chat_id] if admin_chat_id and _re.match(r'^-?[0-9]+\$', admin_chat_id) else []
 
 # Patch channels.telegram with env-ref token (NEVER plaintext).
 cfg.setdefault('channels', {})
@@ -1591,16 +1605,16 @@ print('[install.sh] channels.telegram patched into openclaw.json (allowFrom=%s)'
         # Non-fatal: some openclaw versions activate the channel via config alone.
         warn "  Telegram plugin may not be registered — if bot is unresponsive, run: openclaw plugins install telegram"
       fi
-      # rc17: warn if allowFrom will be empty (bot wired but owner can't DM it).
+      # rc18: TOFU — first DM claims ownership. No config needed.
+      # If GAWD_ADMIN_CHAT_ID was set, we pre-populate allowFrom (faster, proven path).
+      # If not, TOFU fires on first inbound DM (gateway patch tofu-owner-claim-v1).
       if [[ -z "${GAWD_ADMIN_CHAT_ID:-}" ]]; then
         printf '\n'
-        warn "  ┌─────────────────────────────────────────────────────────────────┐"
-        warn "  │  ⚠️  Telegram: your bot will ignore DMs until you set           │"
-        warn "  │     GAWD_ADMIN_CHAT_ID (your numeric Telegram chat ID).         │"
-        warn "  │  After install, edit ~/.openclaw/openclaw.json and add your     │"
-        warn "  │  chat ID to channels.telegram.allowFrom, then restart Gawd.     │"
-        warn "  │  Or re-run:  GAWD_ADMIN_CHAT_ID=<id> bash install.sh           │"
-        warn "  └─────────────────────────────────────────────────────────────────┘"
+        ok "  ┌─────────────────────────────────────────────────────────────────┐"
+        ok "  │  Telegram: zero-config deploy ready.                            │"
+        ok "  │  Just DM your bot — the first message claims ownership.         │"
+        ok "  │  (Optional: re-run with GAWD_ADMIN_CHAT_ID=<id> to pre-claim.) │"
+        ok "  └─────────────────────────────────────────────────────────────────┘"
         printf '\n'
       else
         ok "  channels.telegram.allowFrom populated with GAWD_ADMIN_CHAT_ID — owner can DM the bot on first boot."
