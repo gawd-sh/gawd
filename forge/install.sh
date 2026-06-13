@@ -797,6 +797,69 @@ if [[ "${NON_INTERACTIVE:-0}" == "1" ]]; then
     warn "  Non-interactive mode: GAWD_PROVIDER not set. Set your provider key after install."
     warn "  Example: secrets set MINIMAX_API_KEY"
   fi
+elif [[ -n "${_SELECTED_PROVIDER}" ]]; then
+  # rc16: GAWD_PROVIDER is set in env WITHOUT NON_INTERACTIVE=1 (e.g. README example:
+  #   GAWD_PROVIDER=minimax MINIMAX_API_KEY=xxx ./install.sh
+  # Honor the provider selection regardless of interactivity flag. This mirrors the
+  # NON_INTERACTIVE path: vault the key, write the provider hint. Piped/interactive
+  # installs with GAWD_PROVIDER set should never fall through to the prompt or the
+  # "piped install — skip" warning.
+  log "  GAWD_PROVIDER=${_SELECTED_PROVIDER} set — vaulting from env (non-interactive provider path)."
+  case "$_SELECTED_PROVIDER" in
+    minimax)
+      [[ -n "${MINIMAX_API_KEY:-}" ]] && _vault_key MINIMAX_API_KEY MINIMAX_API_KEY \
+        || warn "  MINIMAX_API_KEY not set in env; set after install: secrets set MINIMAX_API_KEY"
+      _write_provider_hint "minimax" "https://api.minimax.io/anthropic" "anthropic-messages" \
+        "MINIMAX_API_KEY" "minimax/MiniMax-M2.7"
+      ;;
+    anthropic)
+      [[ -n "${ANTHROPIC_API_KEY:-}" ]] && _vault_key ANTHROPIC_API_KEY ANTHROPIC_API_KEY \
+        || warn "  ANTHROPIC_API_KEY not set in env; set after install: secrets set ANTHROPIC_API_KEY"
+      _write_provider_hint "anthropic" "https://api.anthropic.com" "anthropic-messages" \
+        "ANTHROPIC_API_KEY" "anthropic/claude-sonnet-4-6"
+      ;;
+    deepseek)
+      [[ -n "${DEEPSEEK_API_KEY:-}" ]] && _vault_key DEEPSEEK_API_KEY DEEPSEEK_API_KEY \
+        || warn "  DEEPSEEK_API_KEY not set in env; set after install: secrets set DEEPSEEK_API_KEY"
+      _write_provider_hint "deepseek" "https://api.deepseek.com" "openai-chat-completions" \
+        "DEEPSEEK_API_KEY" "deepseek/deepseek-v4-flash"
+      ;;
+    openai)
+      [[ -n "${OPENAI_API_KEY:-}" ]] && _vault_key OPENAI_API_KEY OPENAI_API_KEY \
+        || warn "  OPENAI_API_KEY not set in env; set after install: secrets set OPENAI_API_KEY"
+      _write_provider_hint "openai" "https://api.openai.com" "openai-chat-completions" \
+        "OPENAI_API_KEY" "openai/gpt-4o"
+      ;;
+    ollama)
+      _OLLAMA_EP="${OLLAMA_ENDPOINT:-http://localhost:11434}"
+      if [[ "$_VAULT_READY" -eq 1 ]]; then
+        printf '%s' "$_OLLAMA_EP" | "$SECRETS_HELPER" set OLLAMA_ENDPOINT 2>/dev/null \
+          && ok "  OLLAMA_ENDPOINT stored in vault (${_OLLAMA_EP})." \
+          || warn "  Vault storage failed for OLLAMA_ENDPOINT."
+      fi
+      _write_provider_hint "ollama" "${_OLLAMA_EP}" "openai-chat-completions" \
+        "" "ollama/qwen3:8b"
+      unset _OLLAMA_EP
+      ;;
+    other)
+      _OTHER_NAME="${GAWD_OTHER_PROVIDER_NAME:-custom}"
+      _OTHER_URL="${GAWD_OTHER_PROVIDER_URL:-}"
+      _OTHER_KEY_ENV="${GAWD_OTHER_PROVIDER_KEY_ENV:-}"
+      if [[ -n "$_OTHER_URL" ]]; then
+        _write_provider_hint "$_OTHER_NAME" "$_OTHER_URL" "openai-chat-completions" \
+          "$_OTHER_KEY_ENV" "${_OTHER_NAME}/default"
+        if [[ -n "$_OTHER_KEY_ENV" && -n "${!_OTHER_KEY_ENV:-}" ]]; then
+          _vault_key "$_OTHER_KEY_ENV" "$_OTHER_KEY_ENV"
+        fi
+      else
+        warn "  GAWD_PROVIDER=other but GAWD_OTHER_PROVIDER_URL not set; skipping provider config."
+      fi
+      unset _OTHER_NAME _OTHER_URL _OTHER_KEY_ENV
+      ;;
+    *)
+      warn "  GAWD_PROVIDER='${_SELECTED_PROVIDER}' not recognized; skipping provider config."
+      ;;
+  esac
 elif [[ "$_STDIN_IS_TTY_PROVIDER" -eq 0 ]]; then
   # curl|bash / piped install — stdin is not a tty, cannot prompt.
   printf '\n'
@@ -1029,9 +1092,14 @@ def make_deepseek_provider():
     # Option B (2026-06-09): DeepSeek as an alternative provider for Prophits
     # who prefer it or need a fallback from MiniMax throttling.
     # deepseek-v4-flash: fast, 1M context, OpenAI-compatible endpoint.
+    #
+    # rc16 api-type confirmation: OpenClaw 2026.5.27 (the IMAGE version) schema
+    # REJECTS "openai-chat-completions" (Invalid option). Valid value is
+    # "openai-completions". Verified via `openclaw doctor` on the image.
+    # Do NOT revert to openai-chat-completions — it re-triggers exit-79.
     return {
         "baseUrl": "https://api.deepseek.com",
-        "api": "openai-chat-completions",
+        "api": "openai-completions",
         "apiKey": "${DEEPSEEK_API_KEY}",
         "models": [
             {
@@ -1185,7 +1253,46 @@ config = {
             }
         }
     },
-    "channels": {},
+    # channels.telegram — wired at install time if TELEGRAM_BOT_TOKEN is in env.
+    # The token is NEVER written plaintext: OpenClaw's normalizeApiKeyConfig reads
+    # the "${ENV_VAR_NAME}" string as an env-ref and substitutes at runtime (same
+    # mechanism as model apiKey). The plugin entry is also wired here; the actual
+    # plugin activation runs after provisioning via `openclaw plugins install telegram`.
+    #
+    # allowFrom: populated from GAWD_ADMIN_CHAT_ID env var when present at install
+    # time (rc17 fix — the bot must reply to its owner on a fresh install without
+    # manual config editing). With dmPolicy=allowlist and an empty allowFrom, the
+    # bot ignores ALL messages — silent failure for the Prophit.
+    # If GAWD_ADMIN_CHAT_ID is NOT set, allowFrom stays empty and a clear warning
+    # is printed (see below). We do NOT switch to dmPolicy=open as a fallback —
+    # that is a security trade-off for Paul to decide, not the installer.
+    #
+    # dmPolicy: allowlist — safest default; blocks unsolicited DMs from strangers.
+    # streaming.mode: progress — sends chunked progress messages (same as Lilith).
+    #
+    # If TELEGRAM_BOT_TOKEN is not set, the channels block stays empty; the
+    # post-provisioning Telegram step below will also be skipped. The Prophit
+    # can wire Telegram after install: `secrets set TELEGRAM_BOT_TOKEN` then
+    # re-run install.sh (idempotent Telegram-wiring step picks it up).
+    "channels": (
+        {
+            "telegram": {
+                "enabled": True,
+                "dmPolicy": "allowlist",
+                "botToken": "${TELEGRAM_BOT_TOKEN}",
+                "allowFrom": (
+                    [os.environ.get("GAWD_ADMIN_CHAT_ID")]
+                    if os.environ.get("GAWD_ADMIN_CHAT_ID", "")
+                    else []
+                ),
+                "streaming": {
+                    "mode": "progress"
+                }
+            }
+        }
+        if os.environ.get("TELEGRAM_BOT_TOKEN", "")
+        else {}
+    ),
     "plugins": {
         "slots": {
             # contextEngine slot — routes context assembly through lossless-claw
@@ -1391,6 +1498,117 @@ PYEOF
       else
         warn "  openclaw CLI not on PATH at install time — slot registration deferred to entrypoint re-check"
       fi
+    fi
+
+    # ── rc16: idempotent Telegram wiring (ship-blocker fix) ───────────────────
+    # This step runs whether openclaw.json was just created OR already present
+    # (e.g. pre-provisioned at image build time with channels:{}).
+    #
+    # Problem the fix solves:
+    #   The docker rung image pre-provisions openclaw.json during build (Dockerfile
+    #   runs install.sh without TELEGRAM_BOT_TOKEN). When a Prophit boots the image
+    #   and the entrypoint sees openclaw.json already present, it SKIPS install.sh.
+    #   Even when install.sh IS run (e.g. via docker exec), the openclaw.json guard
+    #   skips the Python config builder. Result: channels stays {} and the bot never
+    #   replies. This step patches outside both guards — it is always reached on the
+    #   docker rung when openclaw is on PATH.
+    #
+    # Safety: idempotent (reads existing config before writing; only writes if
+    #   channels.telegram is missing). No secrets written — token is env-ref only.
+    #   Uses python3 (guaranteed in image). Backs up before any write.
+    if [[ -n "${TELEGRAM_BOT_TOKEN:-}" ]] && command -v openclaw >/dev/null 2>&1; then
+      OPENCLAW_CONFIG_TG="${HOME}/.openclaw/openclaw.json"
+      if [[ -f "$OPENCLAW_CONFIG_TG" ]]; then
+        _tg_already_wired="$(python3 -c "
+import json, sys
+try:
+    cfg = json.load(open('${OPENCLAW_CONFIG_TG}'))
+    ch = cfg.get('channels', {})
+    tg = ch.get('telegram', {})
+    print('yes' if tg.get('enabled') and tg.get('botToken') else 'no')
+except Exception as e:
+    print('no')
+" 2>/dev/null || echo "no")"
+        if [[ "$_tg_already_wired" == "yes" ]]; then
+          ok "  Telegram channel already wired in openclaw.json — skipping patch."
+        else
+          log "  Patching channels.telegram into openclaw.json (TELEGRAM_BOT_TOKEN present)..."
+          # Back up the config before patching.
+          cp "$OPENCLAW_CONFIG_TG" "${OPENCLAW_CONFIG_TG}.bak-tg-rc17-$(date +%s)"
+          python3 -c "
+import json, sys, os
+
+cfg_path = '${OPENCLAW_CONFIG_TG}'
+with open(cfg_path) as f:
+    cfg = json.load(f)
+
+# rc17: wire allowFrom from GAWD_ADMIN_CHAT_ID so the owner can DM their bot
+# on a fresh install without manual config editing.  Chat ID is NOT a secret
+# (it is a numeric identifier, not an API token) — safe to store in config.
+# os.environ.get() used (not bash expansion) to avoid injection risk.
+admin_chat_id = os.environ.get('GAWD_ADMIN_CHAT_ID', '').strip()
+allow_from = [admin_chat_id] if admin_chat_id else []
+
+# Patch channels.telegram with env-ref token (NEVER plaintext).
+cfg.setdefault('channels', {})
+cfg['channels']['telegram'] = {
+    'enabled': True,
+    'dmPolicy': 'allowlist',
+    'botToken': '\${TELEGRAM_BOT_TOKEN}',
+    'allowFrom': allow_from,
+    'streaming': {'mode': 'progress'}
+}
+
+with open(cfg_path, 'w') as f:
+    json.dump(cfg, f, indent=2)
+print('[install.sh] channels.telegram patched into openclaw.json (allowFrom=%s)' % allow_from)
+" 2>&1 \
+            && ok "  channels.telegram wired into openclaw.json (token env-ref, never plaintext)" \
+            || warn "  channels.telegram patch failed — Telegram will not work until manually wired"
+        fi
+        unset _tg_already_wired
+      else
+        warn "  openclaw.json not found at provision time — channels.telegram wiring deferred"
+      fi
+
+      # ── Activate the telegram plugin ──────────────────────────────────────────
+      # The telegram plugin (ID: telegram) ships with openclaw but is disabled by
+      # default. `openclaw plugins install telegram` (no npm fetch needed — it is a
+      # stock extension bundled in the dist) registers it so the gateway polls the
+      # Telegram Bot API and delivers messages to the agent.
+      #
+      # This is the same pattern as lossless-claw registration above. Idempotent:
+      # re-running install when telegram is already active is harmless.
+      log "  Registering Telegram channel plugin..."
+      openclaw plugins install telegram >/dev/null 2>&1 \
+        || warn "  'openclaw plugins install telegram' returned non-zero — verifying channel anyway"
+      # Confirm the plugin is now enabled.
+      _tg_plugin_status="$(HOME="${HOME}" openclaw plugins list 2>/dev/null \
+          | grep -E '^\│.*telegram.*openclaw.*enabled' || echo "")"
+      if [[ -n "$_tg_plugin_status" ]]; then
+        ok "  Telegram plugin enabled."
+      else
+        # Non-fatal: some openclaw versions activate the channel via config alone.
+        warn "  Telegram plugin may not be registered — if bot is unresponsive, run: openclaw plugins install telegram"
+      fi
+      # rc17: warn if allowFrom will be empty (bot wired but owner can't DM it).
+      if [[ -z "${GAWD_ADMIN_CHAT_ID:-}" ]]; then
+        printf '\n'
+        warn "  ┌─────────────────────────────────────────────────────────────────┐"
+        warn "  │  ⚠️  Telegram: your bot will ignore DMs until you set           │"
+        warn "  │     GAWD_ADMIN_CHAT_ID (your numeric Telegram chat ID).         │"
+        warn "  │  After install, edit ~/.openclaw/openclaw.json and add your     │"
+        warn "  │  chat ID to channels.telegram.allowFrom, then restart Gawd.     │"
+        warn "  │  Or re-run:  GAWD_ADMIN_CHAT_ID=<id> bash install.sh           │"
+        warn "  └─────────────────────────────────────────────────────────────────┘"
+        printf '\n'
+      else
+        ok "  channels.telegram.allowFrom populated with GAWD_ADMIN_CHAT_ID — owner can DM the bot on first boot."
+      fi
+    elif [[ -z "${TELEGRAM_BOT_TOKEN:-}" ]]; then
+      warn "  TELEGRAM_BOT_TOKEN not set — Telegram channel not wired. Set it after install:"
+      warn "    secrets set TELEGRAM_BOT_TOKEN"
+      warn "  Then re-run install.sh (the Telegram wiring step will pick it up idempotently)."
     fi
 
     # ── seed agents/main/agent/ with persona system-message ──────────────────
@@ -2235,10 +2453,11 @@ fi
 
 printf '\n'
 printf '\033[1;32m[gawd]\033[0m ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n'
-printf '\033[1;32m[gawd]\033[0m  Installation complete.\n'
+printf '\033[1;32m[gawd]\033[0m  Step 1 done: secrets vault ready. Two steps left.\n'
 printf '\033[1;32m[gawd]\033[0m ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n'
 printf '\n'
 printf '  The secrets helper is now at ~/.local/bin/secrets.\n'
+printf '  Next: add your secrets, then start the daemon (steps below, or gawd.sh).\n'
 # On the docker rung this script runs IN-CONTAINER (docker exec ... --non-interactive)
 # to provision config from the injected env vars. The host-oriented next-steps below
 # (set TELEGRAM_BOT_TOKEN, edit openclaw.json, start the daemon) are already handled —

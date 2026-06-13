@@ -86,6 +86,20 @@ docker exec gawd curl -s http://127.0.0.1:18789/health    # → {"ok":true}
 # 7. Open Telegram and message your bot. Gawd is there.
 ```
 
+### Let your bot reply to you
+
+By default the bot's DM policy is set to `allowlist` — it replies to known chat IDs and ignores everyone else. This is the safe default for a self-hosted bot. If you passed `GAWD_ADMIN_CHAT_ID` in step 4, the installer already added your ID and nothing extra is needed.
+
+If you did not pass `GAWD_ADMIN_CHAT_ID`, or the bot is not responding, add your Telegram numeric ID to the allowlist now. Your numeric ID is different from your username — send a message to [@userinfobot](https://t.me/userinfobot) on Telegram to get it.
+
+```bash
+# Open the allowlist to your own chat ID (replace 123456789 with your numeric Telegram ID):
+echo '{"channels":{"telegram":{"allowFrom":["123456789"]}}}' | docker exec -i gawd openclaw config patch --stdin
+docker restart gawd
+```
+
+Then send a message to your bot. If it still does not reply, check `docker logs gawd` for errors.
+
 The first time you message Gawd it will invite you to the Meeting — a one-time onboarding conversation that personalizes its character to you. You can skip the Meeting; Gawd works without it, just with a generic default personality rather than one shaped to you.
 
 **Supported providers:** OpenAI, Anthropic, MiniMax, DeepSeek, Kimi, Gemini, Groq, and any OpenAI-compatible endpoint. Local models via Ollama work out of the box. To swap providers, edit one value in the daemon config (`~/.openclaw/openclaw.json`).
