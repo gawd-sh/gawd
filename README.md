@@ -67,8 +67,13 @@ secrets env DEEPSEEK_API_KEY TELEGRAM_BOT_TOKEN -- \
     -e GAWD_PROVIDER=deepseek \
     -e DEEPSEEK_API_KEY \
     -e TELEGRAM_BOT_TOKEN \
+    -e GAWD_ADMIN_CHAT_ID=YOUR_TELEGRAM_ID \
     -v ~/.gawd:/data \
     ghcr.io/gawd-sh/gawd:latest
+#    YOUR_TELEGRAM_ID is your numeric Telegram ID — get it by messaging @userinfobot.
+#    Passing it here lets the bot reply to you on first message; skipping it leaves
+#    the bot silent until you add yourself to the allowlist (see "Let your bot reply
+#    to you" below).
 #    (Using a different provider? Match the trio: secrets set MINIMAX_API_KEY,
 #     pass -e GAWD_PROVIDER=minimax -e MINIMAX_API_KEY.)
 
