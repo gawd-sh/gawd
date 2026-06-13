@@ -2577,8 +2577,10 @@ if command -v systemctl &>/dev/null && systemctl --user is-enabled gawd &>/dev/n
   printf '    systemctl --user start gawd\n'
   printf '    systemctl --user status gawd\n'
 elif command -v docker &>/dev/null; then
-  printf '    docker start gawd-daemon      # if already created\n'
-  printf '    # or: docker run ... (see the README for your rung)\n'
+  printf '    curl -fsSL https://gawd.sh/start | bash\n'
+  printf '    # Validates your bot token, launches the daemon, waits until healthy,\n'
+  printf '    # then tells you to message your bot.\n'
+  printf '    # Other provider? append it:  ... | GAWD_PROVIDER=minimax bash\n'
 else
   printf '    # Start the gateway directly:\n'
   printf '    nohup node /opt/gawd/dist/index.js gateway --port 18789 > ~/gawd-gateway.log 2>&1 &\n'
@@ -2590,7 +2592,8 @@ printf '    curl http://127.0.0.1:18789/health   # → {"ok":true}\n'
 printf '\n'
 printf '  ── Then message your bot on Telegram ────────────────────────────────\n'
 printf '\n'
-printf '    Message the bot you created with @BotFather. Gawd should reply.\n'
+printf '    Message the bot you created with @BotFather — your first message\n'
+printf '    claims you as its keeper, and Gawd answers.\n'
 printf '\n'
 if [[ "${SKIP_WIZARD:-0}" == "1" ]]; then
   exit 0
